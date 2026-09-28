@@ -1,0 +1,9 @@
+services:
+  web:
+    build: .
+    image: icebyte-web
+    container_name: icebyte-web
+    ports:
+      # Akses di http://localhost:8088 — ganti port lewat env ICEBYTE_PORT kalau bentrok.
+      - "${ICEBYTE_PORT:-8088}:80"
+    restart: unless-stopped

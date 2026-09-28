@@ -1,0 +1,278 @@
+@import "tailwindcss";
+
+/*
+ * ============================================================
+ *  DESIGN TOKENS ICEBYTE
+ *  Palet diambil dari logo final: krim scoop, lelehan karamel,
+ *  cokelat outline, biru "Ice", pixel biru muda & coral.
+ *  Ubah nilai di :root -> semua utility Tailwind (bg-vanilla,
+ *  text-ice-deep, font-display, rounded-card, shadow-pop, dst.) ikut berubah.
+ * ============================================================
+ */
+:root {
+  /* Warna dasar */
+  --ib-vanilla: #fff8ec; /* background utama */
+  --ib-cream: #fcf3dc; /* krim scoop di logo */
+  --ib-chocolate: #5e2b1b; /* outline & tulisan "Byte" di logo — teks utama */
+  --ib-cocoa: #7a4636; /* teks sekunder */
+  --ib-muted: #8a5d4c; /* placeholder input */
+  --ib-white: #ffffff;
+
+  /* Biru "Ice" */
+  --ib-ice: #42a2e2; /* biru logo — dekorasi saja (kontras rendah untuk teks) */
+  --ib-ice-deep: #1a6aae; /* tombol utama & teks aksen (kontras AA) */
+  --ib-sky: #6cc4f4; /* pixel biru muda */
+  --ib-sky-soft: #e4f3fd;
+
+  /* Coral (pixel merah di logo) */
+  --ib-coral: #fb6b73;
+  --ib-coral-light: #ffb4b8;
+  --ib-coral-soft: #ffe6e6;
+  --ib-coral-deep: #b8323b; /* teks peringatan (kontras AA) */
+
+  /* Karamel (lelehan di logo) */
+  --ib-caramel: #fbd393;
+  --ib-caramel-soft: #fdebc8;
+  --ib-caramel-deep: #e0a24f;
+
+  --ib-danger: #b3261e;
+  --ib-focus: #5e2b1b;
+
+  /* Tipografi */
+  --ib-font-display: "Fredoka", "Baloo 2", ui-rounded, system-ui, sans-serif;
+  --ib-font-body: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --ib-font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  /* Radius */
+  --ib-radius-chip: 0.5rem;
+  --ib-radius-field: 0.875rem;
+  --ib-radius-card: 1.5rem;
+  --ib-radius-panel: 2rem;
+
+  /* Bayangan "stiker" dengan offset ala pixel */
+  --ib-shadow-pop: 4px 4px 0 0 var(--ib-chocolate);
+  --ib-shadow-pop-sm: 2px 2px 0 0 var(--ib-chocolate);
+
+  color-scheme: light;
+}
+
+@theme inline {
+  --color-vanilla: var(--ib-vanilla);
+  --color-cream: var(--ib-cream);
+  --color-chocolate: var(--ib-chocolate);
+  --color-cocoa: var(--ib-cocoa);
+  --color-muted: var(--ib-muted);
+  --color-ice: var(--ib-ice);
+  --color-ice-deep: var(--ib-ice-deep);
+  --color-sky: var(--ib-sky);
+  --color-sky-soft: var(--ib-sky-soft);
+  --color-coral: var(--ib-coral);
+  --color-coral-light: var(--ib-coral-light);
+  --color-coral-soft: var(--ib-coral-soft);
+  --color-coral-deep: var(--ib-coral-deep);
+  --color-caramel: var(--ib-caramel);
+  --color-caramel-soft: var(--ib-caramel-soft);
+  --color-caramel-deep: var(--ib-caramel-deep);
+  --color-danger: var(--ib-danger);
+
+  --font-display: var(--ib-font-display);
+  --font-sans: var(--ib-font-body);
+  --font-mono: var(--ib-font-mono);
+
+  --radius-chip: var(--ib-radius-chip);
+  --radius-field: var(--ib-radius-field);
+  --radius-card: var(--ib-radius-card);
+  --radius-panel: var(--ib-radius-panel);
+
+  --shadow-pop: var(--ib-shadow-pop);
+  --shadow-pop-sm: var(--ib-shadow-pop-sm);
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--ib-vanilla);
+    color: var(--ib-chocolate);
+    font-family: var(--ib-font-body);
+    -webkit-font-smoothing: antialiased;
+    overflow-x: clip;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--ib-font-display);
+    text-wrap: balance;
+  }
+
+  /* Ligature font mono (mis. "===") dimatikan supaya teks bergaya kode tetap terbaca */
+  .font-mono,
+  .badge,
+  code {
+    font-variant-ligatures: none;
+  }
+
+  ::placeholder {
+    color: var(--ib-muted);
+    opacity: 1;
+  }
+
+  ::selection {
+    background-color: var(--ib-sky);
+    color: var(--ib-chocolate);
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--ib-focus);
+    outline-offset: 3px;
+  }
+
+  .on-dark :focus-visible {
+    outline-color: var(--ib-caramel);
+  }
+
+  [id] {
+    scroll-margin-top: 5rem;
+  }
+}
+
+@layer components {
+  /* Tombol dasar: target sentuh minimal 44px */
+  .btn {
+    display: inline-flex;
+    min-height: 2.75rem;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border: 2px solid var(--ib-chocolate);
+    border-radius: 999px;
+    padding: 0.625rem 1.25rem;
+    font-weight: 700;
+    line-height: 1.2;
+    text-align: center;
+    box-shadow: var(--ib-shadow-pop-sm);
+    transition:
+      transform 150ms ease,
+      box-shadow 150ms ease,
+      background-color 150ms ease;
+  }
+  .btn:hover {
+    transform: translate(-1px, -1px);
+    box-shadow: var(--ib-shadow-pop);
+  }
+  .btn:active {
+    transform: translate(2px, 2px);
+    box-shadow: none;
+  }
+  .btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+    transform: none;
+  }
+  .btn-primary {
+    background-color: var(--ib-ice-deep);
+    color: var(--ib-white);
+  }
+  .btn-secondary {
+    background-color: var(--ib-white);
+    color: var(--ib-chocolate);
+  }
+
+  /* Label kecil bergaya kode/pixel */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    border: 1.5px solid var(--ib-chocolate);
+    border-radius: var(--ib-radius-chip);
+    padding: 0.125rem 0.5rem;
+    font-family: var(--ib-font-mono);
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 1.5;
+  }
+
+  .card {
+    border: 2px solid var(--ib-chocolate);
+    border-radius: var(--ib-radius-card);
+    background-color: var(--ib-white);
+    box-shadow: var(--ib-shadow-pop);
+  }
+
+  .field {
+    display: block;
+    width: 100%;
+    min-height: 2.75rem;
+    border: 2px solid var(--ib-chocolate);
+    border-radius: var(--ib-radius-field);
+    background-color: var(--ib-white);
+    padding: 0.5rem 0.875rem;
+    font-size: 1rem; /* 16px mencegah auto-zoom di iOS */
+  }
+  .field[aria-invalid="true"] {
+    border-color: var(--ib-danger);
+    background-color: #fff5f4;
+  }
+
+  /* Latar titik-titik pixel halus */
+  .pixel-grid {
+    background-image: radial-gradient(color-mix(in srgb, var(--ib-chocolate) 14%, transparent) 1px, transparent 1px);
+    background-size: 18px 18px;
+  }
+}
+
+/* Fade-in saat scroll (lihat components/Reveal.tsx) */
+.reveal {
+  opacity: 0;
+  transform: translateY(18px);
+  transition:
+    opacity 600ms ease,
+    transform 600ms ease;
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+@keyframes ib-blink {
+  50% {
+    opacity: 0;
+  }
+}
+.caret {
+  animation: ib-blink 1s steps(1) infinite;
+}
+
+@keyframes ib-float {
+  50% {
+    transform: translateY(-8px);
+  }
+}
+.float {
+  animation: ib-float 4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+  .btn:hover {
+    transform: none;
+  }
+}
