@@ -56,7 +56,7 @@ const products: Product[] = [
     description:
       'Es krim dingin dijepit dua keping biskuit crackers yang renyah. Simpel, praktis, dan pas buat jajan di sela kelas.',
     texture: 'sandwich',
-    price: 7000,
+    price: 8000,
     deliverable: true,
     optionGroups: [{ id: 'rasa', label: 'Rasa', choices: ['Vanila', 'Cokelat', 'Cookies & Cream'] }],
     imageLabel: 'Foto Produk Ice Cream Sandwich',
