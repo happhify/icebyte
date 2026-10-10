@@ -16,8 +16,8 @@ const contact = {
   // Pembeli memilih admin di form PO. Nomor ditampilkan apa adanya;
   // format "0812...", "+62 812..." atau "62812..." otomatis diubah ke "62812..." untuk link WA.
   whatsappAdmins: [
-    { label: 'Admin 1', phone: '0882-7947-0512' },
-    { label: 'Admin 2', phone: '0821-8226-2358' },
+    { label: 'Admin Baik', phone: '0882-7947-0512' },
+    { label: 'Admin Ganteng', phone: '0821-8226-2358' },
   ],
   // Username saja, tanpa "@" dan tanpa link.
   instagram: 'byte.ice',
@@ -164,13 +164,11 @@ export const site: SiteConfig = {
   byteSquad: {
     stampsNeeded,
     stampRewardProductId: stampReward,
-    referralReward: 'topping ekstra',
     // DRAFT — sesuaikan dengan aturan yang disepakati tim.
     terms: [
       `Dapat 1 stamp untuk setiap 1 menu yang dibeli${bundles.length > 0 ? `, termasuk isi bundle (${stampsPerBundle})` : ''}.`,
       'Kartu stamp gratis, minta di booth. Pesanan PO lewat WhatsApp dapat stamp saat pesanan diambil atau diantar.',
       `Kartu penuh (${stampsNeeded} stamp) bisa ditukar dengan 1 ${productName(stampReward)} gratis. Satu kartu untuk satu hadiah.`,
-      'Referral berlaku untuk teman yang baru pertama kali beli IceByte — cukup sebut namamu saat dia pesan. Temanmu dapat topping ekstra di pesanan itu, kamu dapat topping ekstra di pembelian berikutnya.',
       'Stamp dan hadiah tidak bisa diuangkan, dan kartu yang hilang tidak bisa diganti.',
       `Ketentuan bisa berubah sewaktu-waktu — info terbaru di Instagram @${contact.instagram}.`,
     ],

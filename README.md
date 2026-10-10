@@ -111,7 +111,7 @@ pesan WhatsApp kalau produk itu dipesan (termasuk lewat bundle). Saat ini tidak 
 ### FAQ, ketentuan, dan cerita
 
 - `faq`: setiap item punya `question`, `answer`, dan `points` opsional (tampil sebagai daftar poin).
-- `byteSquad.terms`: daftar ketentuan stamp & referral, satu string = satu poin.
+- `byteSquad.terms`: daftar ketentuan kartu stamp, satu string = satu poin.
 - `about.inspiration`: cerita di balik IceByte, satu string = satu paragraf.
 - `delivery.fee`: biarkan `''` supaya ongkos antar tidak ditampilkan; isi (mis. `'Gratis'`) kalau sudah pasti.
 
@@ -152,7 +152,7 @@ Bagian bertanda **DRAFT** di `src/config/site.ts` sudah terisi tapi sebaiknya di
 
 - `about.inspiration` — cerita 10 mahasiswa Teknik Komputer di balik IceByte
 - `faq` → daya tahan es krim (±10–15 menit di suhu ruang) dan ketentuan PO acara (min. 20 pcs, H-3, DP 50%)
-- `byteSquad.terms` — aturan stamp & referral
+- `byteSquad.terms` — aturan kartu stamp
 
 Sudah final: kampus **Telkom University**, area antar **sekitar Telkom University**, Instagram **@byte.ice**,
 domain **https://icebyte.co**, dan logo. Sengaja tidak ditampilkan: jadwal/titik/jam booth, TikTok, ongkos antar,

@@ -113,7 +113,6 @@ export interface SiteConfig {
   byteSquad: {
     stampsNeeded: number
     stampRewardProductId: string
-    referralReward: string
     terms: string[]
   }
   patchUpdate: {

@@ -314,7 +314,7 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
           noValidate
           onSubmit={handleSubmit}
           aria-describedby="form-hint"
-          className="grid items-start gap-6 lg:grid-cols-[1fr_22rem]"
+          className="grid items-start gap-6 lg:grid-cols-[1fr_26rem]"
         >
           <p id="form-hint" className="sr-only">
             Semua isian wajib diisi kecuali catatan.
@@ -553,15 +553,17 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
                         onChange={() => edit(setAdminIndex)(index)}
                         className="size-5 accent-ice-deep"
                       />
-                      <span className="font-semibold">{a.label}</span>
-                      <span className="ml-auto font-mono text-sm text-cocoa">{a.phone}</span>
+                      <span className="flex flex-1 flex-wrap items-baseline justify-between gap-x-3">
+                        <span className="whitespace-nowrap font-semibold">{a.label}</span>
+                        <span className="whitespace-nowrap font-mono text-sm text-cocoa">{a.phone}</span>
+                      </span>
                     </label>
                   ))}
                 </div>
               </fieldset>
             ) : null}
 
-            <button type="submit" className="btn btn-primary mt-5 w-full text-lg">
+            <button type="submit" className="btn btn-primary mt-5 w-full text-base sm:text-lg lg:text-base">
               <IconChat className="size-5" />
               {admins.length > 1 ? `Kirim ke WhatsApp ${admin.label}` : 'Kirim ke WhatsApp'}
             </button>
