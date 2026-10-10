@@ -27,11 +27,11 @@ export function Menu({ onAdd }: MenuProps) {
             id="menu-title"
             eyebrow="02 · menu"
             title="Pick your Byte"
-            description="Tiga tekstur, satu gerai. Mau yang kriuk, yang praktis, atau yang hangat-dingin?"
+            description="Es krim gabin tiga rasa, ditemani roasted milk tea. Mau yang dingin-renyah atau yang bisa diseruput?"
           />
         </Reveal>
 
-        <div role="group" aria-label="Filter tekstur" className="mb-8 flex flex-wrap justify-center gap-2">
+        <div role="group" aria-label="Filter kategori" className="mb-8 flex flex-wrap justify-center gap-2">
           {filters.map((f) => (
             <button
               key={f.id}
@@ -50,11 +50,18 @@ export function Menu({ onAdd }: MenuProps) {
           Menampilkan {visible.length} menu
         </p>
 
-        <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <ul
+          className={`grid gap-6 sm:grid-cols-2 ${site.products.length > 2 ? 'lg:grid-cols-3' : 'mx-auto max-w-4xl'}`}
+        >
           {visible.map((product) => (
             <li key={product.id} className="card flex flex-col overflow-hidden">
               <div className="border-b-2 border-chocolate">
-                <ProductImage label={product.imageLabel} texture={product.texture} image={product.image} />
+                <ProductImage
+                  label={product.imageLabel}
+                  texture={product.texture}
+                  image={product.image}
+                  gallery={product.gallery}
+                />
               </div>
               <div className="flex flex-1 flex-col p-5">
                 <div className="mb-3 flex flex-wrap gap-2">

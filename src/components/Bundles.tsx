@@ -12,6 +12,8 @@ interface BundlesProps {
 const CARD_BG = ['bg-sky-soft', 'bg-caramel-soft', 'bg-coral-soft']
 
 export function Bundles({ onAdd }: BundlesProps) {
+  if (site.bundles.length === 0) return null
+
   return (
     <section id="bundle" aria-labelledby="bundle-title" className="px-4 py-20">
       <div className="mx-auto max-w-6xl">

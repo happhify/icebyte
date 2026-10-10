@@ -19,9 +19,8 @@ function useTypewriter(text: string, speed = 110, startDelay = 400) {
 }
 
 const TEXTURE_CHIP: Record<string, string> = {
-  crunchy: 'bg-caramel',
   sandwich: 'bg-sky',
-  crispy: 'bg-coral-light',
+  drink: 'bg-caramel',
 }
 
 export function Hero() {
@@ -61,7 +60,7 @@ export function Hero() {
             </a>
           </div>
 
-          <ul className="mt-8 flex flex-wrap items-center gap-2" aria-label="Pilihan tekstur">
+          <ul className="mt-8 flex flex-wrap items-center gap-2" aria-label="Kategori menu">
             {textures.map((t) => (
               <li key={t.id} className={`badge ${TEXTURE_CHIP[t.id] ?? 'bg-white'}`}>
                 {t.label}

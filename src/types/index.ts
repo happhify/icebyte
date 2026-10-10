@@ -1,4 +1,4 @@
-export type Texture = 'crunchy' | 'sandwich' | 'crispy'
+export type Texture = 'sandwich' | 'drink'
 
 export interface TextureInfo {
   id: Texture
@@ -28,10 +28,18 @@ export interface Product {
   optionGroups: OptionGroup[]
   /** Otomatis ditambahkan ke form & pesan WA kalau produk ini dipesan. */
   packagingNote?: string
-  /** Path foto asli (mis. "/images/karambol.jpg"). Kosong = tampil placeholder. */
+  /** Path foto asli (mis. "images/gabin.jpg", tanpa "/" di depan). Kosong = tampil placeholder. */
   image?: string
   /** Label placeholder foto sekaligus alt text. */
   imageLabel: string
+  /** Foto tambahan (mis. per rasa), tampil sebagai tombol di bawah foto utama. */
+  gallery?: GalleryImage[]
+}
+
+export interface GalleryImage {
+  label: string
+  /** Path foto, sama seperti `image`. */
+  image: string
 }
 
 export interface BundleItem {
@@ -54,6 +62,12 @@ export interface Testimonial {
   source?: string
 }
 
+export interface WhatsAppAdmin {
+  label: string
+  /** Ditampilkan apa adanya. Format 08xx, +62, atau 62xx diterima. */
+  phone: string
+}
+
 export interface FaqItem {
   question: string
   answer: string
@@ -74,8 +88,8 @@ export interface SiteConfig {
     name: string
   }
   contact: {
-    /** Format internasional tanpa +, mis. 6281234567890. Format 08xx juga diterima. */
-    whatsapp: string
+    /** Admin penerima PO. Pembeli memilih salah satu di form; semuanya tampil di footer. */
+    whatsappAdmins: WhatsAppAdmin[]
     instagram: string
   }
   about: {

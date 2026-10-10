@@ -10,12 +10,12 @@ export function Footer() {
   const { brand, campus, contact } = site
   const socials = [
     { href: instagramUrl, label: `Instagram ${instagramHandle}`, text: instagramHandle, Icon: IconInstagram },
-    {
-      href: `https://wa.me/${normalizePhone(contact.whatsapp)}`,
-      label: `WhatsApp ${contact.whatsapp}`,
-      text: 'WhatsApp admin',
+    ...contact.whatsappAdmins.map((admin) => ({
+      href: `https://wa.me/${normalizePhone(admin.phone)}`,
+      label: `WhatsApp ${admin.label} ${admin.phone}`,
+      text: `WhatsApp ${admin.label} · ${admin.phone}`,
       Icon: IconChat,
-    },
+    })),
   ]
 
   return (

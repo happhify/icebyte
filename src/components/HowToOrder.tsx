@@ -5,7 +5,7 @@ import { SectionHeading } from './SectionHeading'
 const STEPS = [
   {
     title: 'Pilih menu',
-    body: 'Cek menu & bundle di atas, lalu tentukan tekstur favoritmu: crunchy, sandwich, atau crispy.',
+    body: 'Cek menu di atas, lalu pilih favoritmu: es krim gabin (Oreo Mint, Strawberry, Cokelat) atau roasted milk tea.',
     bg: 'bg-caramel/50',
   },
   {
@@ -27,7 +27,7 @@ export function HowToOrder() {
         <Reveal>
           <SectionHeading
             id="cara-pesan-title"
-            eyebrow="04 · cara pesan"
+            eyebrow="03 · cara pesan"
             title="Tiga langkah, langsung deploy ke tanganmu"
           />
         </Reveal>

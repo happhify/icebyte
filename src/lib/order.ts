@@ -252,7 +252,7 @@ export function validatePhone(raw: string): string | undefined {
 export function validateLine(line: OrderLine): LineErrors {
   const errors: LineErrors = {}
   if (!line.itemId || getLineContents(line).length === 0) {
-    errors.item = 'Pilih menu atau bundle.'
+    errors.item = site.bundles.length > 0 ? 'Pilih menu atau bundle.' : 'Pilih menu.'
     return errors
   }
   if (!isValidQty(line.qty)) errors.qty = 'Jumlah minimal 1.'

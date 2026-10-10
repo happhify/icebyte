@@ -6,7 +6,7 @@ import { IconClose, IconMenu } from './Icons'
 
 const LINKS = [
   { href: '#menu', label: 'Menu' },
-  { href: '#bundle', label: 'Bundle' },
+  ...(site.bundles.length > 0 ? [{ href: '#bundle', label: 'Bundle' }] : []),
   { href: '#cara-pesan', label: 'Cara Pesan' },
   { href: '#faq', label: 'FAQ' },
 ]

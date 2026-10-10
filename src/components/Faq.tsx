@@ -19,7 +19,7 @@ export function Faq() {
     <section id="faq" aria-labelledby="faq-title" className="border-t-2 border-chocolate bg-white px-4 py-20">
       <div className="mx-auto max-w-3xl">
         <Reveal>
-          <SectionHeading id="faq-title" eyebrow="08 · faq" title="Pertanyaan yang sering masuk" />
+          <SectionHeading id="faq-title" eyebrow="07 · faq" title="Pertanyaan yang sering masuk" />
         </Reveal>
 
         <div className="space-y-3">

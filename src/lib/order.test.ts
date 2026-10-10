@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { afterAll, describe, expect, it } from 'vitest'
 import { site } from '../config/site'
-import type { OrderForm, OrderLine, Product } from '../types'
+import type { Bundle, OrderForm, OrderLine, Product } from '../types'
 import {
   buildWhatsAppMessage,
   buildWhatsAppUrl,
@@ -33,6 +33,23 @@ const bundle = (id: string) => {
   return found
 }
 
+// Config saat ini tidak punya bundle, jadi logika bundle dites dengan bundle contoh.
+const TEST_BUNDLE: Bundle = {
+  id: 'combo-test',
+  name: 'Combo Test',
+  description: 'Bundle contoh khusus test.',
+  price: 18000,
+  items: [
+    { productId: 'sandwich', qty: 1 },
+    { productId: 'milk-tea', qty: 1 },
+  ],
+}
+// Dipasang saat file dimuat (bukan di beforeAll) karena sebagian pesan dibuat saat describe dikumpulkan.
+site.bundles.push(TEST_BUNDLE)
+afterAll(() => {
+  site.bundles.splice(site.bundles.indexOf(TEST_BUNDLE), 1)
+})
+
 /** Ubah sementara data sebuah produk di config selama satu test, lalu kembalikan seperti semula. */
 function withProduct(id: string, patch: Partial<Product>, run: () => void) {
   const target = product(id)
@@ -50,23 +67,11 @@ function line(partial: Partial<OrderLine> & Pick<OrderLine, 'kind' | 'itemId'>):
   return { ...createLine(), ...partial }
 }
 
-const karambolLine = (qty = 1): OrderLine =>
-  line({
-    kind: 'product',
-    itemId: 'karambol',
-    qty,
-    options: { 'karambol.topping': 'Lotus Biscoff' },
-  })
-const sandwichLine = (qty = 1): OrderLine =>
-  line({ kind: 'product', itemId: 'sandwich', qty, options: { 'sandwich.rasa': 'Vanila' } })
-const gorengLine = (qty = 1): OrderLine => line({ kind: 'product', itemId: 'goreng', qty })
-const fullStackLine = (qty = 1): OrderLine =>
-  line({
-    kind: 'bundle',
-    itemId: 'full-stack',
-    qty,
-    options: { 'karambol.topping': 'Oreo', 'sandwich.rasa': 'Cookies & Cream' },
-  })
+const gabinLine = (qty = 1): OrderLine =>
+  line({ kind: 'product', itemId: 'sandwich', qty, options: { 'sandwich.rasa': 'Oreo Mint' } })
+const milkTeaLine = (qty = 1): OrderLine => line({ kind: 'product', itemId: 'milk-tea', qty })
+const comboLine = (qty = 1): OrderLine =>
+  line({ kind: 'bundle', itemId: TEST_BUNDLE.id, qty, options: { 'sandwich.rasa': 'Strawberry' } })
 
 // Senin, 28 September 2026 jam 10:00 waktu lokal.
 const NOW = new Date(2026, 8, 28, 10, 0)
@@ -75,7 +80,7 @@ function validForm(overrides: Partial<OrderForm> = {}): OrderForm {
   return {
     name: 'Rara',
     phone: '0812-3456-7890',
-    lines: [karambolLine(2)],
+    lines: [gabinLine(2)],
     date: '2026-09-29',
     method: 'pickup',
     address: '',
@@ -95,33 +100,29 @@ describe('formatRupiah', () => {
 
 describe('hitung total', () => {
   it('produk satuan = harga x jumlah', () => {
-    expect(getLineTotal(karambolLine(3))).toBe(product('karambol').price * 3)
+    expect(getLineTotal(gabinLine(3))).toBe(product('sandwich').price * 3)
   })
 
   it('bundle memakai harga bundle, bukan jumlah harga isinya', () => {
-    expect(getLineTotal(fullStackLine(2))).toBe(bundle('full-stack').price * 2)
+    expect(getLineTotal(comboLine(2))).toBe(TEST_BUNDLE.price * 2)
   })
 
   it('menjumlahkan campuran produk dan bundle', () => {
-    const lines = [karambolLine(2), sandwichLine(1), fullStackLine(1)]
+    const lines = [gabinLine(2), milkTeaLine(1), comboLine(1)]
     expect(calculateOrderTotal(lines)).toBe(
-      product('karambol').price * 2 + product('sandwich').price + bundle('full-stack').price,
+      product('sandwich').price * 2 + product('milk-tea').price + TEST_BUNDLE.price,
     )
   })
 
   it('baris kosong atau jumlah tidak valid bernilai 0', () => {
-    expect(calculateOrderTotal([createLine(), karambolLine(0), karambolLine(Number.NaN)])).toBe(0)
+    expect(calculateOrderTotal([createLine(), gabinLine(0), gabinLine(Number.NaN)])).toBe(0)
   })
 
   it('harga normal & hemat bundle dihitung dari harga produk', () => {
-    const fullStack = bundle('full-stack')
-    const normal = product('karambol').price + product('sandwich').price + product('goreng').price
-    expect(getBundleNormalPrice(fullStack)).toBe(normal)
-    expect(getBundleSavings(fullStack)).toBe(normal - fullStack.price)
-
-    const pair = bundle('byte-pair')
-    expect(getBundleNormalPrice(pair)).toBe(product('karambol').price * 2)
-    expect(getBundleSavings(pair)).toBe(product('karambol').price * 2 - pair.price)
+    const combo = bundle(TEST_BUNDLE.id)
+    const normal = product('sandwich').price + product('milk-tea').price
+    expect(getBundleNormalPrice(combo)).toBe(normal)
+    expect(getBundleSavings(combo)).toBe(normal - combo.price)
   })
 })
 
@@ -154,36 +155,36 @@ describe('validasi tanggal (PO ditutup H-1)', () => {
 })
 
 describe('aturan pengantaran', () => {
-  // Saat ini semua menu bisa diantar; aturan dites dengan menandai Es Krim Goreng sementara sebagai non-deliverable.
+  // Saat ini semua menu bisa diantar; aturan dites dengan menandai Roasted Milk Tea sementara sebagai non-deliverable.
   const pickupOnly: Partial<Product> = { deliverable: false, availability: 'Booth/event tertentu' }
 
   it('produk non-deliverable + antar ditolak dengan pesan jelas', () => {
-    withProduct('goreng', pickupOnly, () => {
-      const errors = validateOrder(validForm({ lines: [gorengLine()], method: 'delivery', address: 'Kos Melati' }), NOW)
-      expect(errors.method).toContain(product('goreng').name)
+    withProduct('milk-tea', pickupOnly, () => {
+      const errors = validateOrder(validForm({ lines: [milkTeaLine()], method: 'delivery', address: 'Kos Melati' }), NOW)
+      expect(errors.method).toContain(product('milk-tea').name)
       expect(errors.method).toContain('tidak bisa diantar')
       expect(errors.method).toContain('booth/event tertentu')
     })
   })
 
   it('bundle yang berisi produk non-deliverable juga ditolak', () => {
-    withProduct('goreng', pickupOnly, () => {
-      const conflict = getDeliveryConflict([fullStackLine()])
-      expect(conflict).toContain(bundle('full-stack').name)
-      expect(conflict).toContain(product('goreng').name)
+    withProduct('milk-tea', pickupOnly, () => {
+      const conflict = getDeliveryConflict([comboLine()])
+      expect(conflict).toContain(TEST_BUNDLE.name)
+      expect(conflict).toContain(product('milk-tea').name)
     })
   })
 
   it('produk non-deliverable boleh diambil di booth', () => {
-    withProduct('goreng', pickupOnly, () => {
-      const errors = validateOrder(validForm({ lines: [gorengLine(), fullStackLine()], method: 'pickup' }), NOW)
+    withProduct('milk-tea', pickupOnly, () => {
+      const errors = validateOrder(validForm({ lines: [milkTeaLine(), comboLine()], method: 'pickup' }), NOW)
       expect(hasErrors(errors)).toBe(false)
     })
   })
 
   it('produk deliverable boleh diantar asal lokasi diisi', () => {
-    withProduct('goreng', { deliverable: true }, () => {
-      const lines = [karambolLine(), sandwichLine(), gorengLine(), fullStackLine()]
+    withProduct('milk-tea', { deliverable: true }, () => {
+      const lines = [gabinLine(), milkTeaLine(), comboLine()]
       expect(getDeliveryConflict(lines)).toBeUndefined()
       expect(validateOrder(validForm({ lines, method: 'delivery', address: '' }), NOW).address).toBeDefined()
       expect(hasErrors(validateOrder(validForm({ lines, method: 'delivery', address: 'Gedung B' }), NOW))).toBe(false)
@@ -205,23 +206,23 @@ describe('validasi form', () => {
   })
 
   it('jumlah harus bilangan bulat >= 1', () => {
-    const bad = karambolLine(0)
+    const bad = gabinLine(0)
     expect(validateOrder(validForm({ lines: [bad] }), NOW).lines?.[bad.key]?.qty).toBeDefined()
-    const frac = karambolLine(1.5)
+    const frac = gabinLine(1.5)
     expect(validateOrder(validForm({ lines: [frac] }), NOW).lines?.[frac.key]?.qty).toBeDefined()
   })
 
   it('item dan varian wajib dipilih', () => {
     const empty = createLine()
-    const noOptions = line({ kind: 'product', itemId: 'karambol' })
+    const noOptions = line({ kind: 'product', itemId: 'sandwich' })
     const errors = validateOrder(validForm({ lines: [empty, noOptions] }), NOW)
     expect(errors.lines?.[empty.key]?.item).toBeDefined()
-    expect(Object.keys(errors.lines?.[noOptions.key]?.options ?? {})).toEqual(['karambol.topping'])
+    expect(Object.keys(errors.lines?.[noOptions.key]?.options ?? {})).toEqual(['sandwich.rasa'])
   })
 
   it('varian bundle mencakup semua produk di dalamnya', () => {
-    const keys = getOptionFields({ kind: 'bundle', itemId: 'full-stack' }).map((f) => f.key)
-    expect(keys).toEqual(['karambol.topping', 'sandwich.rasa'])
+    const keys = getOptionFields({ kind: 'bundle', itemId: TEST_BUNDLE.id }).map((f) => f.key)
+    expect(keys).toEqual(['sandwich.rasa'])
   })
 
   it('nomor WhatsApp dinormalisasi & divalidasi', () => {
@@ -232,15 +233,22 @@ describe('validasi form', () => {
     expect(validatePhone('12345')).toBeDefined()
     expect(validatePhone('08abc')).toBeDefined()
   })
+
+  it('semua nomor admin di config valid', () => {
+    expect(site.contact.whatsappAdmins.length).toBeGreaterThan(0)
+    for (const admin of site.contact.whatsappAdmins) {
+      expect(validatePhone(admin.phone)).toBeUndefined()
+    }
+  })
 })
 
 describe('catatan kemasan', () => {
   it('muncul untuk produk yang punya packagingNote, termasuk di dalam bundle', () => {
-    withProduct('karambol', { packagingNote: 'Topping dikemas terpisah.' }, () => {
-      expect(getPackagingNotes([karambolLine()])).toEqual(['Topping dikemas terpisah.'])
-      expect(getPackagingNotes([fullStackLine(), karambolLine()])).toEqual(['Topping dikemas terpisah.'])
-      expect(getPackagingNotes([sandwichLine()])).toEqual([])
-      expect(buildWhatsAppMessage(validForm())).toContain('_Info: Topping dikemas terpisah._')
+    withProduct('sandwich', { packagingNote: 'Es krim dikemas dengan ice gel.' }, () => {
+      expect(getPackagingNotes([gabinLine()])).toEqual(['Es krim dikemas dengan ice gel.'])
+      expect(getPackagingNotes([comboLine(), gabinLine()])).toEqual(['Es krim dikemas dengan ice gel.'])
+      expect(getPackagingNotes([milkTeaLine()])).toEqual([])
+      expect(buildWhatsAppMessage(validForm())).toContain('_Info: Es krim dikemas dengan ice gel._')
     })
   })
 })
@@ -248,7 +256,7 @@ describe('catatan kemasan', () => {
 describe('pesan WhatsApp', () => {
   const form = validForm({
     name: 'Budi & Sari',
-    lines: [karambolLine(2), fullStackLine(1)],
+    lines: [gabinLine(2), comboLine(1)],
     notes: 'Saus #1 + ekstra 50%? Makasih',
   })
   const message = buildWhatsAppMessage(form)
@@ -256,12 +264,12 @@ describe('pesan WhatsApp', () => {
   it('berisi rangkuman lengkap', () => {
     expect(message).toContain('*Nama:* Budi & Sari')
     expect(message).toContain('*No. WA:* 0812-3456-7890')
-    expect(message).toContain(`1. ${product('karambol').name}`)
-    expect(message).toContain(`2 x ${formatRupiah(product('karambol').price)} = ${formatRupiah(product('karambol').price * 2)}`)
-    expect(message).toContain('Topping: Lotus Biscoff')
-    expect(message).toContain('1x Es Krim Karambol (Topping: Oreo)')
-    expect(message).toContain(`2. ${bundle('full-stack').name} (bundle)`)
-    expect(message).toContain('Rasa: Cookies & Cream')
+    expect(message).toContain(`1. ${product('sandwich').name}`)
+    expect(message).toContain(`2 x ${formatRupiah(product('sandwich').price)} = ${formatRupiah(product('sandwich').price * 2)}`)
+    expect(message).toContain('Rasa: Oreo Mint')
+    expect(message).toContain('1x Es Krim Gabin (Rasa: Strawberry)')
+    expect(message).toContain('1x Roasted Milk Tea')
+    expect(message).toContain(`2. ${TEST_BUNDLE.name} (bundle)`)
     expect(message).toContain(`*Total:* ${formatRupiah(calculateOrderTotal(form.lines))}`)
     expect(message).toContain('*Tanggal ambil:* Selasa, 29 September 2026')
     expect(message).toContain('*Metode:* Ambil di booth')

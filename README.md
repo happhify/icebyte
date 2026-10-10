@@ -81,7 +81,7 @@ jadi cukup edit file ini lalu simpan — halaman otomatis ter-update.
 ### Ubah harga
 
 ```ts
-{ id: 'karambol', ..., price: 12000, ... }
+{ id: 'sandwich', ..., price: 12000, ... }
 ```
 
 Mengubah `price` langsung mengubah: harga di kartu menu, harga coret & "Hemat RpX" di bundle, pilihan di dropdown form,
@@ -126,8 +126,9 @@ testimonials: [{ name: 'Nama', quote: 'Isi testimoni', source: 'via Instagram' }
 
 ### Foto produk
 
-Taruh foto di `public/images/` lalu isi `image: 'images/karambol.jpg'` (tanpa `/` di depan) pada produk. Selama `image` kosong, tampil
-placeholder berlabel (`imageLabel`, sekaligus jadi alt text).
+Taruh foto di `public/images/` lalu isi `image: 'images/gabin.jpg'` (tanpa `/` di depan) pada produk. Selama `image` kosong, tampil
+placeholder berlabel (`imageLabel`, sekaligus jadi alt text). Foto tambahan (mis. per rasa) diisi di `gallery`, tampil sebagai
+tombol di bawah foto utama. Pakai rasio 4:3, lebar ±1200px.
 
 ### Logo, warna, font, radius
 
@@ -144,7 +145,8 @@ placeholder berlabel (`imageLabel`, sekaligus jadi alt text).
 
 ## 4. Yang masih perlu diisi / dicek
 
-Semua placeholder sudah terisi (WhatsApp admin: **0882-7947-0512**, di `contact.whatsapp`).
+Semua placeholder sudah terisi (WhatsApp admin: **0882-7947-0512** dan **0821-8226-2358**, di `contact.whatsappAdmins`;
+pembeli memilih admin tujuan di form PO).
 
 Bagian bertanda **DRAFT** di `src/config/site.ts` sudah terisi tapi sebaiknya dicek ulang oleh tim:
 
@@ -156,7 +158,7 @@ Sudah final: kampus **Telkom University**, area antar **sekitar Telkom Universit
 domain **https://icebyte.co**, dan logo. Sengaja tidak ditampilkan: jadwal/titik/jam booth, TikTok, ongkos antar,
 dan status halal.
 
-> Harga di config masih **estimasi**: Karambol Rp12.000, Sandwich Rp7.000, Goreng Rp13.000, Byte Pair Rp22.000, Full Stack Rp29.000.
+> Harga saat ini: Es Krim Gabin Rp13.000, Roasted Milk Tea Rp8.000. Belum ada bundle (`bundles: []` → section Bundle disembunyikan).
 
 ---
 

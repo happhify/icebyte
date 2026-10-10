@@ -92,7 +92,7 @@ function LineEditor({ line, index, errors, canRemove, onChange, onRemove }: Line
       <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
         <div>
           <label htmlFor={itemId} className={labelClass}>
-            Menu / bundle
+            {site.bundles.length > 0 ? 'Menu / bundle' : 'Menu'}
           </label>
           <select
             id={itemId}
@@ -102,7 +102,7 @@ function LineEditor({ line, index, errors, canRemove, onChange, onRemove }: Line
             aria-invalid={errors?.item ? true : undefined}
             aria-describedby={describedBy(errors?.item && `${itemId}-error`)}
           >
-            <option value="">Pilih menu atau bundle…</option>
+            <option value="">{site.bundles.length > 0 ? 'Pilih menu atau bundle…' : 'Pilih menu…'}</option>
             <optgroup label="Menu">
               {site.products.map((p) => (
                 <option key={p.id} value={`product:${p.id}`}>
@@ -110,13 +110,15 @@ function LineEditor({ line, index, errors, canRemove, onChange, onRemove }: Line
                 </option>
               ))}
             </optgroup>
-            <optgroup label="Bundle">
-              {site.bundles.map((b) => (
-                <option key={b.id} value={`bundle:${b.id}`}>
-                  {b.name} (bundle) — {formatRupiah(b.price)}
-                </option>
-              ))}
-            </optgroup>
+            {site.bundles.length > 0 ? (
+              <optgroup label="Bundle">
+                {site.bundles.map((b) => (
+                  <option key={b.id} value={`bundle:${b.id}`}>
+                    {b.name} (bundle) — {formatRupiah(b.price)}
+                  </option>
+                ))}
+              </optgroup>
+            ) : null}
           </select>
           <FieldError id={`${itemId}-error`}>{errors?.item}</FieldError>
         </div>
@@ -238,6 +240,9 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
   const [notes, setNotes] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [sentUrl, setSentUrl] = useState<string | null>(null)
+  const [adminIndex, setAdminIndex] = useState(0)
+  const admins = site.contact.whatsappAdmins
+  const admin = admins[adminIndex] ?? admins[0]
 
   const form: OrderForm = { name, phone, lines, date, method, address, notes }
   const errors = submitted ? validateOrder(form, now) : {}
@@ -249,7 +254,7 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
   const total = calculateOrderTotal(lines)
   const packagingNotes = getPackagingNotes(lines)
   const minDate = getMinPickupDate(now)
-  const waMissing = isPlaceholder(site.contact.whatsapp)
+  const waMissing = admins.length === 0 || admins.some((a) => isPlaceholder(a.phone))
 
   // Setiap perubahan membatalkan link WA yang sudah dibuat sebelumnya.
   const edit =
@@ -289,7 +294,7 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
       return
     }
 
-    const url = buildWhatsAppUrl(site.contact.whatsapp, buildWhatsAppMessage(form))
+    const url = buildWhatsAppUrl(admin.phone, buildWhatsAppMessage(form))
     setSentUrl(url)
     openWhatsApp(url)
   }
@@ -299,7 +304,7 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
       <div className="mx-auto max-w-6xl">
         <SectionHeading
           id="pesan-title"
-          eyebrow="05 · pre-order"
+          eyebrow="04 · pre-order"
           title="Pre-order sekarang"
           description="Isi form, cek total, lalu kirim ke WhatsApp. PO ditutup H-1 sebelum tanggal ambil."
         />
@@ -527,9 +532,38 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
               </p>
             ) : null}
 
+            {admins.length > 1 ? (
+              <fieldset className="mt-5">
+                <legend className="font-mono text-sm font-bold uppercase tracking-wider text-ice-deep">Kirim ke</legend>
+                <div className="mt-2 grid gap-2">
+                  {admins.map((a, index) => (
+                    <label
+                      key={a.phone}
+                      className={`flex min-h-12 cursor-pointer items-center gap-3 rounded-field border-2 px-3 py-2 transition-colors ${
+                        adminIndex === index
+                          ? 'border-chocolate bg-caramel-soft'
+                          : 'border-chocolate/40 bg-white hover:border-chocolate'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="admin"
+                        value={index}
+                        checked={adminIndex === index}
+                        onChange={() => edit(setAdminIndex)(index)}
+                        className="size-5 accent-ice-deep"
+                      />
+                      <span className="font-semibold">{a.label}</span>
+                      <span className="ml-auto font-mono text-sm text-cocoa">{a.phone}</span>
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            ) : null}
+
             <button type="submit" className="btn btn-primary mt-5 w-full text-lg">
               <IconChat className="size-5" />
-              Kirim ke WhatsApp
+              {admins.length > 1 ? `Kirim ke WhatsApp ${admin.label}` : 'Kirim ke WhatsApp'}
             </button>
             <p className="mt-3 text-xs text-cocoa">
               Pesanan diproses setelah dikonfirmasi admin. Bayar via {site.payment.methods.join(' / ')}.
@@ -537,7 +571,7 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
 
             {waMissing ? (
               <p className="mt-3 rounded-field border-2 border-dashed border-coral-deep px-3 py-2 text-xs text-coral-deep">
-                Nomor WhatsApp admin belum diisi ({site.contact.whatsapp}) di <code>src/config/site.ts</code>.
+                Nomor WhatsApp admin belum diisi di <code>src/config/site.ts</code> (<code>contact.whatsappAdmins</code>).
               </p>
             ) : null}
 

@@ -13,9 +13,12 @@ import type { Bundle, FaqItem, Product, SiteConfig } from '../types'
  */
 
 const contact = {
-  // Format internasional tanpa "+" dan spasi, mis. "6281234567890".
-  // Format "0812..." juga otomatis diubah ke "62812...".
-  whatsapp: '6288279470512', // 0882-7947-0512
+  // Pembeli memilih admin di form PO. Nomor ditampilkan apa adanya;
+  // format "0812...", "+62 812..." atau "62812..." otomatis diubah ke "62812..." untuk link WA.
+  whatsappAdmins: [
+    { label: 'Admin 1', phone: '0882-7947-0512' },
+    { label: 'Admin 2', phone: '0821-8226-2358' },
+  ],
   // Username saja, tanpa "@" dan tanpa link.
   instagram: 'byte.ice',
 }
@@ -38,63 +41,42 @@ const payment = {
 
 const products: Product[] = [
   {
-    id: 'karambol',
-    name: 'Es Krim Karambol',
-    codename: 'CrunchByte',
-    description:
-      'Roti tawar lembut dengan es krim di atasnya, lalu diberi topping pilihanmu. Lembut, dingin, dan manis dalam satu gigitan.',
-    texture: 'crunchy',
-    price: 12000,
-    deliverable: true,
-    optionGroups: [{ id: 'topping', label: 'Topping', choices: ['Saus Karamel', 'Lotus Biscoff', 'Oreo'] }],
-    imageLabel: 'Foto Produk Karambol',
-  },
-  {
     id: 'sandwich',
-    name: 'Ice Cream Sandwich / Es Krim Gabin',
+    name: 'Es Krim Gabin',
     codename: 'SandByte',
     description:
       'Es krim dingin dijepit dua keping biskuit crackers yang renyah. Simpel, praktis, dan pas buat jajan di sela kelas.',
     texture: 'sandwich',
-    price: 8000,
-    deliverable: true,
-    optionGroups: [{ id: 'rasa', label: 'Rasa', choices: ['Vanila', 'Cokelat', 'Cookies & Cream'] }],
-    imageLabel: 'Foto Produk Ice Cream Sandwich',
-  },
-  {
-    id: 'goreng',
-    name: 'Es Krim Goreng',
-    codename: 'HotByte',
-    description:
-      'Luarnya crispy dan hangat, dalamnya tetap dingin dan creamy, lengkap dengan saus. Paling enak dinikmati selagi hangat.',
-    texture: 'crispy',
     price: 13000,
     deliverable: true,
+    optionGroups: [{ id: 'rasa', label: 'Rasa', choices: ['Oreo Mint', 'Strawberry', 'Cokelat'] }],
+    image: 'images/gabin.jpg',
+    imageLabel: 'Es Krim Gabin',
+    gallery: [
+      { label: 'Semua', image: 'images/gabin.jpg' },
+      { label: 'Oreo Mint', image: 'images/gabin-oreo-mint.jpg' },
+      { label: 'Strawberry', image: 'images/gabin-strawberry.jpg' },
+      { label: 'Cokelat', image: 'images/gabin-cokelat.jpg' },
+    ],
+  },
+  {
+    id: 'milk-tea',
+    name: 'Roasted Milk Tea',
+    // DRAFT — codename & deskripsi silakan disesuaikan tim.
+    codename: 'SipByte',
+    description:
+      'Teh susu dengan aroma teh panggang yang khas, manis dan creamy. Pas jadi teman es krim gabin di sela kelas.',
+    texture: 'drink',
+    price: 8000,
+    deliverable: true,
     optionGroups: [],
-    imageLabel: 'Foto Produk Es Krim Goreng',
+    image: 'images/milk-tea.jpg',
+    imageLabel: 'Roasted Milk Tea dalam botol',
   },
 ]
 
-const bundles: Bundle[] = [
-  {
-    id: 'byte-pair',
-    name: 'Byte Pair',
-    description: 'Dua Es Krim Karambol buat kamu dan bestie. Berdua lebih hemat.',
-    price: 22000,
-    items: [{ productId: 'karambol', qty: 2 }],
-  },
-  {
-    id: 'full-stack',
-    name: 'Full Stack',
-    description: 'Satu dari tiap menu: crunchy, sandwich, dan crispy sekaligus. Cobain semua tekstur!',
-    price: 29000,
-    items: [
-      { productId: 'karambol', qty: 1 },
-      { productId: 'sandwich', qty: 1 },
-      { productId: 'goreng', qty: 1 },
-    ],
-  },
-]
+// Kosong = section Bundle, menu navbar Bundle, dan pilihan bundle di form disembunyikan.
+const bundles: Bundle[] = []
 
 const deliverableNames = products.filter((p) => p.deliverable).map((p) => p.name)
 const pickupOnly = products.filter((p) => !p.deliverable)
@@ -107,8 +89,6 @@ const faq: FaqItem[] = [
       'Di suhu ruang, es krim mulai meleleh sekitar 10–15 menit setelah diterima, jadi paling enak langsung dinikmati. Beberapa tips supaya tetap enak:',
     points: [
       'Belum mau dimakan? Simpan di freezer dan habiskan di hari yang sama.',
-      'Es Krim Karambol: segera dinikmati supaya rotinya tidak lembek dan topping tetap renyah.',
-      'Es Krim Goreng: langsung dimakan selagi hangat, tidak untuk disimpan.',
       'Kalau dibawa agak jauh, pakai tas atau cooler bag dan hindari sinar matahari langsung.',
     ],
   },
@@ -156,9 +136,9 @@ export const site: SiteConfig = {
     name: 'IceByte',
     version: 'v1.0',
     slogan: 'Take a Byte!',
-    tagline: 'Crunchy, Sandwich, Crispy — pick your Byte.',
-    valueProp: 'Tiga tekstur es krim dalam satu gerai kampus, dengan harga mahasiswa.',
-    heroDescription: `Roti es krim karambol, sandwich crackers, dan es krim goreng buatan mahasiswa ${campus.name}. Harganya ramah di kantong — pilih favoritmu dan pesan langsung lewat WhatsApp.`,
+    tagline: 'Es Krim Gabin & Roasted Milk Tea — pick your Byte.',
+    valueProp: 'Es krim gabin dan roasted milk tea dalam satu gerai kampus, dengan harga mahasiswa.',
+    heroDescription: `Es krim gabin tiga rasa dan roasted milk tea buatan mahasiswa ${campus.name}. Harganya ramah di kantong — pilih favoritmu dan pesan langsung lewat WhatsApp.`,
   },
   campus,
   contact,
@@ -169,14 +149,13 @@ export const site: SiteConfig = {
     // DRAFT — silakan disesuaikan dengan cerita asli tim.
     inspiration: [
       `Kami bersepuluh adalah mahasiswa S1 Teknik Komputer ${campus.name}. Hari-hari kami diisi coding, praktikum, dan debugging sampai larut — dan di sela semua itu, jajanan manis selalu jadi penyelamat.`,
-      'Dari obrolan di sela tugas, muncul ide: kenapa nggak bikin jajanan sendiri yang enak, beda, dan tetap ramah di kantong mahasiswa? Kami pilih es krim, lalu meraciknya jadi tiga tekstur — crunchy, sandwich, dan crispy — supaya selalu ada yang cocok buat tiap selera.',
+      'Dari obrolan di sela tugas, muncul ide: kenapa nggak bikin jajanan sendiri yang enak, beda, dan tetap ramah di kantong mahasiswa? Kami mulai dari es krim gabin dengan tiga varian rasa — Oreo Mint, Strawberry, dan Cokelat — ditemani roasted milk tea buat yang mau seruput sesuatu.',
       'IceByte kami jalankan seperti satu tim proyek: ada yang pegang produksi, keuangan, promosi, sampai website ini. Cara kerjanya pun ala anak Teknik Komputer — coba, evaluasi, perbaiki, lalu rilis versi yang lebih baik. Ini baru v1.0, dan kami akan terus update.',
     ],
   },
   textures: [
-    { id: 'crunchy', label: 'Crunchy' },
-    { id: 'sandwich', label: 'Sandwich' },
-    { id: 'crispy', label: 'Crispy' },
+    { id: 'sandwich', label: 'Es Krim' },
+    { id: 'drink', label: 'Minuman' },
   ],
   products,
   bundles,
@@ -188,7 +167,7 @@ export const site: SiteConfig = {
     referralReward: 'topping ekstra',
     // DRAFT — sesuaikan dengan aturan yang disepakati tim.
     terms: [
-      `Dapat 1 stamp untuk setiap 1 menu yang dibeli, termasuk isi bundle (${stampsPerBundle}).`,
+      `Dapat 1 stamp untuk setiap 1 menu yang dibeli${bundles.length > 0 ? `, termasuk isi bundle (${stampsPerBundle})` : ''}.`,
       'Kartu stamp gratis, minta di booth. Pesanan PO lewat WhatsApp dapat stamp saat pesanan diambil atau diantar.',
       `Kartu penuh (${stampsNeeded} stamp) bisa ditukar dengan 1 ${productName(stampReward)} gratis. Satu kartu untuk satu hadiah.`,
       'Referral berlaku untuk teman yang baru pertama kali beli IceByte — cukup sebut namamu saat dia pesan. Temanmu dapat topping ekstra di pesanan itu, kamu dapat topping ekstra di pembelian berikutnya.',

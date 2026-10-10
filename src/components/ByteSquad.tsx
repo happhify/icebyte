@@ -15,7 +15,7 @@ export function ByteSquad() {
         <Reveal>
           <SectionHeading
             id="byte-squad-title"
-            eyebrow="06 · byte squad"
+            eyebrow="05 · byte squad"
             title="Gabung Byte Squad"
             description="Program loyalitas buat kamu yang sering jajan. Makin sering, makin banyak bonusnya."
           />
