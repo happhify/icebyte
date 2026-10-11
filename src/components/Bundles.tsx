@@ -22,7 +22,7 @@ export function Bundles({ onAdd }: BundlesProps) {
             id="bundle-title"
             eyebrow="03 · bundle"
             title="Paket hemat, byte lebih banyak"
-            description="Harga bundle lebih murah daripada beli satuan. Hematnya dihitung otomatis."
+            description="Harga bundle lebih murah daripada beli satuan."
           />
         </Reveal>
 
@@ -44,11 +44,8 @@ export function Bundles({ onAdd }: BundlesProps) {
             return (
               <li key={bundle.id}>
                 <Reveal delay={index * 100} className={`card flex h-full flex-col p-6 ${CARD_BG[index % CARD_BG.length]}`}>
-                  <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
                     <span className="badge bg-white">bundle</span>
-                    {savings > 0 ? (
-                      <span className="badge border-ice-deep bg-ice-deep text-white">Hemat {formatRupiah(savings)}</span>
-                    ) : null}
                   </div>
 
                   <h3 className="mt-4 text-3xl font-bold">{bundle.name}</h3>
