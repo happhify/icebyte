@@ -173,7 +173,7 @@ Sudah final: kampus **Telkom University**, area antar **sekitar Telkom Universit
 domain **https://icebyte.co**, dan logo. Sengaja tidak ditampilkan: jadwal/titik/jam booth, TikTok, ongkos antar,
 dan status halal.
 
-> Harga saat ini: Es Krim Gabin Rp13.000, Roasted Milk Tea Rp13.000, bundle Full Stack (1 Gabin + 1 Milk Tea) Rp22.000,
+> Harga saat ini: Es Krim Gabin Rp10.000, Roasted Milk Tea Rp13.000, bundle Full Stack (1 Gabin + 1 Milk Tea) Rp22.000,
 > Byte Trio (3 Gabin, satu tiap rasa) Rp27.000, Byte Pair (2 Roasted Milk Tea) Rp25.000.
 > Kalau `bundles: []`, section Bundle disembunyikan.
 

@@ -58,7 +58,7 @@ const products: Product[] = [
     description:
       'Es krim dingin dijepit dua keping biskuit crackers yang renyah. Simpel, praktis, dan pas buat jajan di sela kelas.',
     texture: 'sandwich',
-    price: 13000,
+    price: 10000,
     deliverable: true,
     optionGroups: [{ id: 'rasa', label: 'Rasa', choices: ['Oreo Mint', 'Strawberry', 'Cokelat'] }],
     image: 'images/gabin.jpg',
