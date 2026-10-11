@@ -57,7 +57,7 @@ perubahan di `src/config/site.ts` perlu `docker compose up -d --build` lagi. Unt
 src/
   config/site.ts      ← SATU-SATUNYA sumber data (harga, menu, bundle, topping/varian, WA, sosmed, FAQ, testimoni)
   types/index.ts      ← tipe data
-  lib/order.ts        ← hitung total, validasi (tanggal H-1, antar, nomor WA), builder pesan & link WhatsApp
+  lib/order.ts        ← hitung total, validasi (batch PO, antar, nomor WA), builder pesan & link WhatsApp
   lib/order.test.ts   ← unit test logika order
   lib/links.ts        ← link Instagram + deteksi placeholder
   hooks/              ← hook kecil (prefers-reduced-motion)
@@ -124,6 +124,21 @@ Biarkan `testimonials: []` sampai ada testimoni **asli** (dengan izin pelanggan)
 testimonials: [{ name: 'Nama', quote: 'Isi testimoni', source: 'via Instagram' }],
 ```
 
+### Metode ambil/antar
+
+`fulfillmentMethods` di `src/config/site.ts` menentukan metode di form PO. Sekarang `['delivery']` (booth belum buka),
+jadi form langsung memakai **Antar** tanpa pilihan metode. Kalau booth sudah buka, ubah jadi `['pickup', 'delivery']`.
+
+### Batch PO
+
+PO dibuka per batch di `batches` (`src/config/site.ts`). Form PO hanya bisa dikirim antara `orderStart` dan `orderEnd`
+(dua-duanya ikut dihitung); tanggal ambil/antar otomatis `fulfillmentDate`. Di luar masa batch, form ditutup dan
+menampilkan jadwal batch berikutnya (kalau sudah diisi). Untuk batch baru, tambahkan baris:
+
+```ts
+{ name: 'Batch 2', orderStart: '2026-10-19', orderEnd: '2026-10-22', fulfillmentDate: '2026-10-25' },
+```
+
 ### Foto produk
 
 Taruh foto di `public/images/` lalu isi `image: 'images/gabin.jpg'` (tanpa `/` di depan) pada produk. Selama `image` kosong, tampil
@@ -145,8 +160,8 @@ tombol di bawah foto utama. Pakai rasio 4:3, lebar ±1200px.
 
 ## 4. Yang masih perlu diisi / dicek
 
-Semua placeholder sudah terisi (WhatsApp admin: **0882-7947-0512** dan **0821-8226-2358**, di `contact.whatsappAdmins`;
-pembeli memilih admin tujuan di form PO).
+Semua placeholder sudah terisi (WhatsApp admin: **0882-7947-0512**, di `contact.whatsappAdmins`. Kalau diisi lebih
+dari satu admin, pembeli bisa memilih admin tujuan di form PO).
 
 Bagian bertanda **DRAFT** di `src/config/site.ts` sudah terisi tapi sebaiknya dicek ulang oleh tim:
 
@@ -228,8 +243,8 @@ Setiap push ke branch utama otomatis ter-deploy ulang.
 
 ## 6. Catatan teknis
 
-- **Alur pre-order:** form memvalidasi input (semua wajib kecuali catatan; jumlah ≥ 1; tanggal minimal besok karena PO
-  ditutup H-1; produk non-deliverable tidak bisa diantar; lokasi wajib kalau diantar), lalu membuka
+- **Alur pre-order:** form memvalidasi input (semua wajib kecuali catatan; jumlah ≥ 1; hanya bisa dikirim selama masa
+  batch PO di `batches`; produk non-deliverable tidak bisa diantar; lokasi wajib kalau diantar), lalu membuka
   `https://wa.me/<nomor>?text=<pesan ter-encode>`. Semua logika ada di `src/lib/order.ts` dan dites di `order.test.ts`.
 - **Tanggal** dihitung dari jam perangkat pengunjung.
 - **Aksesibilitas:** label untuk setiap input, pesan error terhubung via `aria-describedby`, fokus keyboard terlihat,

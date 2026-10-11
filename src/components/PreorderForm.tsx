@@ -8,11 +8,13 @@ import {
   calculateOrderTotal,
   createLine,
   formatDateLong,
+  formatDateRange,
   formatRupiah,
+  getBatchClosedMessage,
   getDeliveryConflict,
   getItemName,
   getLineTotal,
-  getMinPickupDate,
+  getOpenBatch,
   getOptionFields,
   getPackagingNotes,
   getUnitPrice,
@@ -234,8 +236,9 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
   const [now, setNow] = useState(() => new Date())
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
-  const [date, setDate] = useState('')
-  const [method, setMethod] = useState<FulfillmentMethod | ''>('')
+  const methods = site.fulfillmentMethods
+  // Kalau cuma ada satu metode, langsung terpilih dan pilihannya tidak ditampilkan.
+  const [method, setMethod] = useState<FulfillmentMethod | ''>(methods.length === 1 ? methods[0] : '')
   const [address, setAddress] = useState('')
   const [notes, setNotes] = useState('')
   const [submitted, setSubmitted] = useState(false)
@@ -244,7 +247,8 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
   const admins = site.contact.whatsappAdmins
   const admin = admins[adminIndex] ?? admins[0]
 
-  const form: OrderForm = { name, phone, lines, date, method, address, notes }
+  const form: OrderForm = { name, phone, lines, method, address, notes }
+  const batch = getOpenBatch(now)
   const errors = submitted ? validateOrder(form, now) : {}
   const errorCount = countErrors(errors)
   // Konflik antar vs produk non-deliverable ditampilkan langsung, tanpa menunggu submit.
@@ -253,7 +257,6 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
 
   const total = calculateOrderTotal(lines)
   const packagingNotes = getPackagingNotes(lines)
-  const minDate = getMinPickupDate(now)
   const waMissing = admins.length === 0 || admins.some((a) => isPlaceholder(a.phone))
 
   // Setiap perubahan membatalkan link WA yang sudah dibuat sebelumnya.
@@ -294,7 +297,7 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
       return
     }
 
-    const url = buildWhatsAppUrl(admin.phone, buildWhatsAppMessage(form))
+    const url = buildWhatsAppUrl(admin.phone, buildWhatsAppMessage(form, current))
     setSentUrl(url)
     openWhatsApp(url)
   }
@@ -306,7 +309,11 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
           id="pesan-title"
           eyebrow="05 · pre-order"
           title="Pre-order sekarang"
-          description="Isi form, cek total, lalu kirim ke WhatsApp. PO ditutup H-1 sebelum tanggal ambil."
+          description={
+            batch
+              ? `PO ${batch.name} dibuka ${formatDateRange(batch.orderStart, batch.orderEnd)}. Semua pesanan ${methods.includes('pickup') ? 'diambil/diantar' : 'diantar'} ${formatDateLong(batch.fulfillmentDate)}.`
+              : getBatchClosedMessage(now)
+          }
         />
 
         <form
@@ -387,58 +394,64 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
 
             {/* Pengambilan */}
             <div className="card space-y-5 p-5 sm:p-6">
-              <div>
-                <label htmlFor="po-date" className={labelClass}>
-                  Tanggal {method === 'delivery' ? 'antar' : 'ambil'}
-                </label>
-                <input
-                  id="po-date"
-                  type="date"
-                  min={minDate}
-                  className="field"
-                  value={date}
-                  onChange={(e) => edit(setDate)(e.target.value)}
-                  aria-invalid={errors.date ? true : undefined}
-                  aria-describedby={describedBy('po-date-hint', errors.date && 'po-date-error')}
-                />
-                <p id="po-date-hint" className="mt-1.5 text-sm text-cocoa">
-                  PO ditutup H-1 — paling cepat {formatDateLong(minDate)}.
-                </p>
-                <FieldError id="po-date-error">{errors.date}</FieldError>
-              </div>
-
-              <fieldset aria-describedby={describedBy(methodError && 'po-method-error')}>
-                <legend className={labelClass}>Metode</legend>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {(['pickup', 'delivery'] as const).map((value) => (
-                    <label
-                      key={value}
-                      className={`flex min-h-14 cursor-pointer items-start gap-3 rounded-field border-2 p-3 transition-colors ${
-                        method === value ? 'border-chocolate bg-caramel-soft' : 'border-chocolate/40 bg-white hover:border-chocolate'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name="method"
-                        value={value}
-                        checked={method === value}
-                        onChange={() => edit(setMethod)(value)}
-                        className="mt-1 size-5 accent-ice-deep"
-                        aria-invalid={methodError ? true : undefined}
-                      />
-                      <span>
-                        <span className="block font-semibold">{METHOD_LABELS[value]}</span>
-                        <span className="block text-sm text-cocoa">
-                          {value === 'pickup' ? `Booth ${site.campus.name}` : `Area ${site.delivery.area}`}
-                        </span>
-                      </span>
-                    </label>
-                  ))}
+              {batch ? (
+                <div className="rounded-field border-2 border-chocolate bg-caramel-soft px-4 py-3">
+                  <p className="font-mono text-sm font-bold uppercase tracking-wider text-ice-deep">
+                    PO {batch.name} · {formatDateRange(batch.orderStart, batch.orderEnd)}
+                  </p>
+                  <p className="mt-1">
+                    Tanggal {method === 'delivery' ? 'antar' : 'ambil'}:{' '}
+                    <strong>{formatDateLong(batch.fulfillmentDate)}</strong>
+                  </p>
                 </div>
+              ) : (
+                <p
+                  role="alert"
+                  className="flex items-start gap-2 rounded-field border-2 border-coral-deep bg-coral-soft px-4 py-3 font-semibold text-coral-deep"
+                >
+                  <IconAlert className="mt-1 size-4 shrink-0" />
+                  {errors.batch ?? getBatchClosedMessage(now)}
+                </p>
+              )}
+
+              {methods.length > 1 ? (
+                <fieldset aria-describedby={describedBy(methodError && 'po-method-error')}>
+                  <legend className={labelClass}>Metode</legend>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {methods.map((value) => (
+                      <label
+                        key={value}
+                        className={`flex min-h-14 cursor-pointer items-start gap-3 rounded-field border-2 p-3 transition-colors ${
+                          method === value ? 'border-chocolate bg-caramel-soft' : 'border-chocolate/40 bg-white hover:border-chocolate'
+                        }`}
+                      >
+                        <input
+                          type="radio"
+                          name="method"
+                          value={value}
+                          checked={method === value}
+                          onChange={() => edit(setMethod)(value)}
+                          className="mt-1 size-5 accent-ice-deep"
+                          aria-invalid={methodError ? true : undefined}
+                        />
+                        <span>
+                          <span className="block font-semibold">{METHOD_LABELS[value]}</span>
+                          <span className="block text-sm text-cocoa">
+                            {value === 'pickup' ? `Booth ${site.campus.name}` : `Area ${site.delivery.area}`}
+                          </span>
+                        </span>
+                      </label>
+                    ))}
+                  </div>
+                  <div role="alert">
+                    <FieldError id="po-method-error">{methodError}</FieldError>
+                  </div>
+                </fieldset>
+              ) : (
                 <div role="alert">
                   <FieldError id="po-method-error">{methodError}</FieldError>
                 </div>
-              </fieldset>
+              )}
 
               {method === 'delivery' ? (
                 <div>
@@ -563,9 +576,13 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
               </fieldset>
             ) : null}
 
-            <button type="submit" className="btn btn-primary mt-5 w-full text-base sm:text-lg lg:text-base">
+            <button
+              type="submit"
+              disabled={!batch}
+              className="btn btn-primary mt-5 w-full text-base disabled:cursor-not-allowed disabled:opacity-50 sm:text-lg lg:text-base"
+            >
               <IconChat className="size-5" />
-              {admins.length > 1 ? `Kirim ke WhatsApp ${admin.label}` : 'Kirim ke WhatsApp'}
+              {!batch ? 'PO sedang tutup' : admins.length > 1 ? `Kirim ke WhatsApp ${admin.label}` : 'Kirim ke WhatsApp'}
             </button>
             <p className="mt-3 text-xs text-cocoa">
               Pesanan diproses setelah dikonfirmasi admin. Bayar via {site.payment.methods.join(' / ')}.

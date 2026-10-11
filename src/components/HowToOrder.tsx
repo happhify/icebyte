@@ -10,12 +10,12 @@ const STEPS = [
   },
   {
     title: 'Isi form PO',
-    body: 'Isi form pre-order paling lambat H-1 sebelum tanggal ambil, lalu tekan “Kirim ke WhatsApp”.',
+    body: 'Isi form pre-order selama masa PO batch dibuka, lalu tekan “Kirim ke WhatsApp”.',
     bg: 'bg-sky',
   },
   {
     title: 'Konfirmasi & bayar',
-    body: `Admin mengonfirmasi pesananmu di WhatsApp. Bayar pakai ${site.payment.methods.join(' atau ')}, lalu tinggal ambil!`,
+    body: `Admin mengonfirmasi pesananmu di WhatsApp. Bayar pakai ${site.payment.methods.join(' atau ')}, ${site.fulfillmentMethods.includes('pickup') ? 'lalu tinggal ambil!' : 'lalu tunggu pesananmu diantar!'}`,
     bg: 'bg-coral-light',
   },
 ]

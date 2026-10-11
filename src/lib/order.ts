@@ -7,6 +7,7 @@ import type {
   OrderErrors,
   OrderForm,
   OrderLine,
+  PoBatch,
   Product,
 } from '../types'
 
@@ -183,7 +184,7 @@ export function getDeliveryConflict(lines: ItemRef[]): string | undefined {
 
   return `${joinNames(uniqueLabels)} tidak bisa diantar${
     availability ? ` — hanya tersedia di ${availability}` : ''
-  }. Pilih "${METHOD_LABELS.pickup}" atau hapus item tersebut.`
+  }. ${site.fulfillmentMethods.includes('pickup') ? `Pilih "${METHOD_LABELS.pickup}" atau hapus` : 'Hapus'} item tersebut.`
 }
 
 /** Catatan kemasan (mis. topping dikemas terpisah) untuk produk yang dipesan. */
@@ -219,18 +220,44 @@ export function parseISODate(value: string): Date | null {
   return date
 }
 
-/** PO ditutup H-1, jadi tanggal ambil paling cepat besok. */
-export function getMinPickupDate(now: Date = new Date()): string {
-  return toISODate(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1))
+const dayMonthYearFormatter = new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+
+/** "2026-10-11", "2026-10-14" -> "11–14 Oktober 2026". */
+export function formatDateRange(start: string, end: string): string {
+  const a = parseISODate(start)
+  const b = parseISODate(end)
+  if (!a || !b) return `${start} – ${end}`
+  if (a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth()) {
+    return `${a.getDate()}–${dayMonthYearFormatter.format(b)}`
+  }
+  return `${dayMonthYearFormatter.format(a)} – ${dayMonthYearFormatter.format(b)}`
 }
 
-export function validatePickupDate(value: string, now: Date = new Date()): string | undefined {
-  if (!value) return 'Pilih tanggal ambil.'
-  if (!parseISODate(value)) return 'Format tanggal tidak valid.'
-  const min = getMinPickupDate(now)
-  // Format YYYY-MM-DD aman dibandingkan sebagai string.
-  if (value < min) return `PO ditutup H-1. Pilih tanggal paling cepat ${formatDateLong(min)}.`
-  return undefined
+/* ------------------------------------------------------------------ */
+/* Batch PO                                                            */
+/* ------------------------------------------------------------------ */
+
+// Format YYYY-MM-DD aman dibandingkan sebagai string.
+
+/** Batch yang form PO-nya sedang dibuka pada `now`, atau undefined. */
+export function getOpenBatch(now: Date = new Date()): PoBatch | undefined {
+  const today = toISODate(now)
+  return site.batches.find((b) => b.orderStart <= today && today <= b.orderEnd)
+}
+
+/** Batch terdekat yang belum dibuka. */
+export function getNextBatch(now: Date = new Date()): PoBatch | undefined {
+  const today = toISODate(now)
+  return site.batches
+    .filter((b) => b.orderStart > today)
+    .sort((a, b) => a.orderStart.localeCompare(b.orderStart))[0]
+}
+
+/** Pesan saat tidak ada batch yang buka. */
+export function getBatchClosedMessage(now: Date = new Date()): string {
+  const next = getNextBatch(now)
+  if (next) return `PO ${next.name} baru dibuka ${formatDateLong(next.orderStart)}.`
+  return `PO sedang tutup. Info batch berikutnya di Instagram @${site.contact.instagram}.`
 }
 
 /* ------------------------------------------------------------------ */
@@ -293,11 +320,12 @@ export function validateOrder(form: OrderForm, now: Date = new Date()): OrderErr
     if (Object.keys(lineErrors).length > 0) errors.lines = lineErrors
   }
 
-  const dateError = validatePickupDate(form.date, now)
-  if (dateError) errors.date = dateError
+  if (!getOpenBatch(now)) errors.batch = getBatchClosedMessage(now)
 
   if (!form.method) {
     errors.method = 'Pilih metode: ambil di booth atau antar.'
+  } else if (!site.fulfillmentMethods.includes(form.method)) {
+    errors.method = `${METHOD_LABELS[form.method]} belum tersedia.`
   } else if (form.method === 'delivery') {
     const conflict = getDeliveryConflict(form.lines)
     if (conflict) errors.method = conflict
@@ -335,7 +363,8 @@ function describeLine(line: OrderLine): string[] {
   })
 }
 
-export function buildWhatsAppMessage(form: OrderForm): string {
+export function buildWhatsAppMessage(form: OrderForm, now: Date = new Date()): string {
+  const batch = getOpenBatch(now)
   const out: string[] = [`Halo ${site.brand.name}! Saya mau pre-order ya.`, '']
 
   out.push(`*Nama:* ${form.name.trim()}`)
@@ -350,7 +379,8 @@ export function buildWhatsAppMessage(form: OrderForm): string {
   })
 
   out.push('', `*Total:* ${formatRupiah(calculateOrderTotal(form.lines))}`)
-  out.push(`*Tanggal ${form.method === 'delivery' ? 'antar' : 'ambil'}:* ${formatDateLong(form.date)}`)
+  out.push(`*Batch PO:* ${batch?.name ?? '-'}`)
+  out.push(`*Tanggal ${form.method === 'delivery' ? 'antar' : 'ambil'}:* ${batch ? formatDateLong(batch.fulfillmentDate) : '-'}`)
   out.push(`*Metode:* ${form.method ? METHOD_LABELS[form.method] : '-'}`)
   if (form.method === 'delivery') {
     out.push(`*Lokasi antar:* ${form.address.trim()}`)

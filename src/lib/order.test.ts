@@ -1,6 +1,6 @@
 import { afterAll, describe, expect, it } from 'vitest'
 import { site } from '../config/site'
-import type { Bundle, OrderForm, OrderLine, Product } from '../types'
+import type { Bundle, OrderForm, OrderLine, PoBatch, Product } from '../types'
 import {
   buildWhatsAppMessage,
   buildWhatsAppUrl,
@@ -11,14 +11,16 @@ import {
   getBundleSavings,
   getDeliveryConflict,
   getLineTotal,
-  getMinPickupDate,
+  getNextBatch,
+  getOpenBatch,
+  formatDateRange,
+  parseISODate,
   getOptionFields,
   getPackagingNotes,
   hasErrors,
   normalizePhone,
   validateOrder,
   validatePhone,
-  validatePickupDate,
 } from './order'
 
 // Semua ekspektasi harga diambil dari config, jadi test tetap valid saat harga diubah.
@@ -54,9 +56,24 @@ const TEST_TRIO: Bundle = {
     { productId: 'sandwich', qty: 1, options: { rasa: 'Strawberry' } },
   ],
 }
+// Batch contoh yang mencakup NOW, supaya test tidak bergantung pada tanggal batch asli.
+const TEST_BATCH: PoBatch = {
+  name: 'Batch Test',
+  orderStart: '2026-09-25',
+  orderEnd: '2026-09-30',
+  fulfillmentDate: '2026-10-03',
+}
+const CONFIG_BATCHES = [...site.batches]
+const CONFIG_METHODS = [...site.fulfillmentMethods]
+
 // Dipasang saat file dimuat (bukan di beforeAll) karena sebagian pesan dibuat saat describe dikumpulkan.
 site.bundles.push(TEST_BUNDLE, TEST_TRIO)
+site.batches.splice(0, site.batches.length, TEST_BATCH)
+// Test aturan ambil vs antar butuh kedua metode aktif, apa pun isi config saat ini.
+site.fulfillmentMethods.splice(0, site.fulfillmentMethods.length, 'pickup', 'delivery')
 afterAll(() => {
+  site.fulfillmentMethods.splice(0, site.fulfillmentMethods.length, ...CONFIG_METHODS)
+  site.batches.splice(0, site.batches.length, ...CONFIG_BATCHES)
   site.bundles.splice(site.bundles.indexOf(TEST_BUNDLE), 1)
   site.bundles.splice(site.bundles.indexOf(TEST_TRIO), 1)
 })
@@ -92,7 +109,6 @@ function validForm(overrides: Partial<OrderForm> = {}): OrderForm {
     name: 'Rara',
     phone: '0812-3456-7890',
     lines: [gabinLine(2)],
-    date: '2026-09-29',
     method: 'pickup',
     address: '',
     notes: '',
@@ -137,31 +153,37 @@ describe('hitung total', () => {
   })
 })
 
-describe('validasi tanggal (PO ditutup H-1)', () => {
-  it('tanggal minimal adalah besok', () => {
-    expect(getMinPickupDate(NOW)).toBe('2026-09-29')
+describe('batch PO', () => {
+  it('buka dari orderStart sampai akhir hari orderEnd', () => {
+    expect(getOpenBatch(new Date(2026, 8, 25, 0, 0))?.name).toBe(TEST_BATCH.name)
+    expect(getOpenBatch(new Date(2026, 8, 30, 23, 59))?.name).toBe(TEST_BATCH.name)
+    expect(getOpenBatch(new Date(2026, 8, 24, 23, 59))).toBeUndefined()
+    expect(getOpenBatch(new Date(2026, 9, 1, 0, 0))).toBeUndefined()
   })
 
-  it('menolak hari ini dan tanggal lampau', () => {
-    expect(validatePickupDate('2026-09-28', NOW)).toMatch(/H-1/)
-    expect(validatePickupDate('2026-09-01', NOW)).toMatch(/H-1/)
+  it('di luar masa batch, form ditolak dengan info batch berikutnya', () => {
+    const before = new Date(2026, 8, 20, 10)
+    expect(getNextBatch(before)?.name).toBe(TEST_BATCH.name)
+    expect(validateOrder(validForm(), before).batch).toContain('baru dibuka Jumat, 25 September 2026')
+
+    const after = new Date(2026, 9, 5, 10)
+    expect(getNextBatch(after)).toBeUndefined()
+    expect(validateOrder(validForm(), after).batch).toContain(`@${site.contact.instagram}`)
   })
 
-  it('menerima besok dan setelahnya', () => {
-    expect(validatePickupDate('2026-09-29', NOW)).toBeUndefined()
-    expect(validatePickupDate('2026-12-24', NOW)).toBeUndefined()
+  it('rentang tanggal diformat ringkas', () => {
+    expect(formatDateRange('2026-10-11', '2026-10-14')).toBe('11–14 Oktober 2026')
+    expect(formatDateRange('2026-10-30', '2026-11-02')).toBe('30 Oktober 2026 – 2 November 2026')
   })
 
-  it('tetap benar di akhir hari, akhir bulan, dan akhir tahun', () => {
-    expect(getMinPickupDate(new Date(2026, 8, 28, 23, 59))).toBe('2026-09-29')
-    expect(getMinPickupDate(new Date(2026, 8, 30, 12))).toBe('2026-10-01')
-    expect(getMinPickupDate(new Date(2026, 11, 31, 12))).toBe('2027-01-01')
-  })
-
-  it('menolak tanggal kosong atau tidak valid', () => {
-    expect(validatePickupDate('', NOW)).toBeDefined()
-    expect(validatePickupDate('besok', NOW)).toBeDefined()
-    expect(validatePickupDate('2026-02-30', NOW)).toBeDefined()
+  it('semua batch di config valid & berurutan', () => {
+    for (const b of CONFIG_BATCHES) {
+      for (const value of [b.orderStart, b.orderEnd, b.fulfillmentDate]) {
+        expect(parseISODate(value), `${b.name}: ${value}`).not.toBeNull()
+      }
+      expect(b.orderStart <= b.orderEnd, `${b.name}: orderStart <= orderEnd`).toBe(true)
+      expect(b.orderEnd < b.fulfillmentDate, `${b.name}: orderEnd < fulfillmentDate`).toBe(true)
+    }
   })
 })
 
@@ -193,6 +215,19 @@ describe('aturan pengantaran', () => {
     })
   })
 
+  it('kalau hanya antar yang aktif, ambil di booth ditolak', () => {
+    site.fulfillmentMethods.splice(0, site.fulfillmentMethods.length, 'delivery')
+    try {
+      expect(validateOrder(validForm({ method: 'pickup' }), NOW).method).toContain('belum tersedia')
+      expect(hasErrors(validateOrder(validForm({ method: 'delivery', address: 'Gedung B' }), NOW))).toBe(false)
+      withProduct('milk-tea', pickupOnly, () => {
+        expect(getDeliveryConflict([milkTeaLine()])).not.toContain('Ambil di booth')
+      })
+    } finally {
+      site.fulfillmentMethods.splice(0, site.fulfillmentMethods.length, 'pickup', 'delivery')
+    }
+  })
+
   it('produk deliverable boleh diantar asal lokasi diisi', () => {
     withProduct('milk-tea', { deliverable: true }, () => {
       const lines = [gabinLine(), milkTeaLine(), comboLine()]
@@ -210,10 +245,10 @@ describe('validasi form', () => {
 
   it('field wajib kosong ditolak', () => {
     const errors = validateOrder(
-      { name: ' ', phone: '', lines: [], date: '', method: '', address: '', notes: '' },
+      { name: ' ', phone: '', lines: [], method: '', address: '', notes: '' },
       NOW,
     )
-    expect(Object.keys(errors).sort()).toEqual(['date', 'items', 'method', 'name', 'phone'])
+    expect(Object.keys(errors).sort()).toEqual(['items', 'method', 'name', 'phone'])
   })
 
   it('jumlah harus bilangan bulat >= 1', () => {
@@ -242,7 +277,7 @@ describe('validasi form', () => {
     expect(validateOrder(validForm({ lines: [trio] }), NOW)).toEqual({})
     expect(getBundleNormalPrice(TEST_TRIO)).toBe(product('sandwich').price * 2)
 
-    const message = buildWhatsAppMessage(validForm({ lines: [trio] }))
+    const message = buildWhatsAppMessage(validForm({ lines: [trio] }), NOW)
     expect(message).toContain('- 1x Es Krim Gabin (Rasa: Oreo Mint)')
     expect(message).toContain('- 1x Es Krim Gabin (Rasa: Strawberry)')
   })
@@ -270,7 +305,7 @@ describe('catatan kemasan', () => {
       expect(getPackagingNotes([gabinLine()])).toEqual(['Es krim dikemas dengan ice gel.'])
       expect(getPackagingNotes([comboLine(), gabinLine()])).toEqual(['Es krim dikemas dengan ice gel.'])
       expect(getPackagingNotes([milkTeaLine()])).toEqual([])
-      expect(buildWhatsAppMessage(validForm())).toContain('_Info: Es krim dikemas dengan ice gel._')
+      expect(buildWhatsAppMessage(validForm(), NOW)).toContain('_Info: Es krim dikemas dengan ice gel._')
     })
   })
 })
@@ -281,7 +316,7 @@ describe('pesan WhatsApp', () => {
     lines: [gabinLine(2), comboLine(1)],
     notes: 'Saus #1 + ekstra 50%? Makasih',
   })
-  const message = buildWhatsAppMessage(form)
+  const message = buildWhatsAppMessage(form, NOW)
 
   it('berisi rangkuman lengkap', () => {
     expect(message).toContain('*Nama:* Budi & Sari')
@@ -293,14 +328,16 @@ describe('pesan WhatsApp', () => {
     expect(message).toContain('1x Roasted Milk Tea')
     expect(message).toContain(`2. ${TEST_BUNDLE.name} (bundle)`)
     expect(message).toContain(`*Total:* ${formatRupiah(calculateOrderTotal(form.lines))}`)
-    expect(message).toContain('*Tanggal ambil:* Selasa, 29 September 2026')
+    expect(message).toContain('*Batch PO:* Batch Test')
+    expect(message).toContain('*Tanggal ambil:* Sabtu, 3 Oktober 2026')
     expect(message).toContain('*Metode:* Ambil di booth')
     expect(message).toContain('*Catatan:* Saus #1 + ekstra 50%? Makasih')
   })
 
   it('menyertakan lokasi antar kalau metode antar', () => {
-    const msg = buildWhatsAppMessage(validForm({ method: 'delivery', address: 'Kos Melati No. 3' }))
+    const msg = buildWhatsAppMessage(validForm({ method: 'delivery', address: 'Kos Melati No. 3' }), NOW)
     expect(msg).toContain('*Metode:* Antar')
+    expect(msg).toContain('*Tanggal antar:* Sabtu, 3 Oktober 2026')
     expect(msg).toContain('*Lokasi antar:* Kos Melati No. 3')
   })
 

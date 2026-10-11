@@ -1,4 +1,4 @@
-import type { Bundle, FaqItem, Product, SiteConfig } from '../types'
+import type { Bundle, FaqItem, FulfillmentMethod, PoBatch, Product, SiteConfig } from '../types'
 
 /**
  * ============================================================
@@ -17,7 +17,6 @@ const contact = {
   // format "0812...", "+62 812..." atau "62812..." otomatis diubah ke "62812..." untuk link WA.
   whatsappAdmins: [
     { label: 'Admin Baik', phone: '0882-7947-0512' },
-    { label: 'Admin Ganteng', phone: '0821-8226-2358' },
   ],
   // Username saja, tanpa "@" dan tanpa link.
   instagram: 'byte.ice',
@@ -34,6 +33,18 @@ const delivery = {
   // (tidak ikut dihitung di total form).
   fee: '',
 }
+
+// PO dibuka per batch. Tanggal format YYYY-MM-DD; orderEnd ikut dihitung (hari terakhir masih bisa pesan).
+// Di luar semua masa batch, form PO ditutup. Tambah batch baru di bawahnya.
+const batches: PoBatch[] = [
+  { name: 'Batch 1', orderStart: '2026-10-11', orderEnd: '2026-10-14', fulfillmentDate: '2026-10-18' },
+]
+
+// Metode di form PO. Booth belum buka, jadi sementara hanya antar.
+// Kalau booth sudah buka, ubah jadi ['pickup', 'delivery'].
+const fulfillmentMethods: FulfillmentMethod[] = ['delivery']
+const hasPickup = fulfillmentMethods.includes('pickup')
+const fulfillmentVerb = hasPickup ? 'diambil/diantar' : 'diantar'
 
 const payment = {
   methods: ['QRIS', 'Tunai'],
@@ -107,6 +118,9 @@ const bundles: Bundle[] = [
   },
 ]
 
+const tanggal = (iso: string) =>
+  new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'long' }).format(new Date(`${iso}T00:00`))
+
 const deliverableNames = products.filter((p) => p.deliverable).map((p) => p.name)
 const pickupOnly = products.filter((p) => !p.deliverable)
 const productName = (id: string) => products.find((p) => p.id === id)?.name ?? id
@@ -132,9 +146,12 @@ const faq: FaqItem[] = [
       .join(' '),
   },
   {
-    question: 'Kapan PO ditutup?',
-    answer:
-      'Pre-order ditutup H-1, jadi pesan paling lambat sehari sebelum tanggal ambil. Pesanan baru diproses setelah dikonfirmasi admin lewat WhatsApp.',
+    question: 'Kapan PO dibuka dan pesanan diantar?',
+    answer: `PO dibuka per batch, dan semua pesanan satu batch ${fulfillmentVerb} di tanggal yang sama. Di luar masa PO, form ditutup — info batch berikutnya di Instagram @${contact.instagram}. Pesanan baru diproses setelah dikonfirmasi admin lewat WhatsApp.`,
+    points: batches.map(
+      (b) =>
+        `${b.name}: pesan ${tanggal(b.orderStart)}–${tanggal(b.orderEnd)}, ${hasPickup ? 'ambil/antar' : 'diantar'} ${tanggal(b.fulfillmentDate)}.`,
+    ),
   },
   {
     question: 'Bayarnya pakai apa?',
@@ -147,7 +164,7 @@ const faq: FaqItem[] = [
     points: [
       'Minimal 20 pcs per pesanan, boleh campur menu dan varian.',
       'Pesan paling lambat H-3 sebelum acara supaya bahan dan produksi siap.',
-      'DP 50% saat pesanan dikonfirmasi, pelunasan saat pesanan diambil atau diantar.',
+      `DP 50% saat pesanan dikonfirmasi, pelunasan saat pesanan ${fulfillmentVerb}.`,
       `Pengantaran untuk area ${delivery.area}.`,
       'Perubahan jumlah paling lambat H-2. DP tidak dikembalikan kalau pesanan dibatalkan.',
     ],
@@ -186,8 +203,10 @@ export const site: SiteConfig = {
     { id: 'sandwich', label: 'Es Krim' },
     { id: 'drink', label: 'Minuman' },
   ],
+  batches,
   products,
   bundles,
+  fulfillmentMethods,
   delivery,
   payment,
   byteSquad: {
@@ -196,7 +215,9 @@ export const site: SiteConfig = {
     // DRAFT — sesuaikan dengan aturan yang disepakati tim.
     terms: [
       `Dapat 1 stamp untuk setiap 1 menu yang dibeli${bundles.length > 0 ? `, termasuk isi bundle (${stampsPerBundle})` : ''}.`,
-      'Kartu stamp gratis, minta di booth. Pesanan PO lewat WhatsApp dapat stamp saat pesanan diambil atau diantar.',
+      hasPickup
+        ? 'Kartu stamp gratis, minta di booth. Pesanan PO lewat WhatsApp dapat stamp saat pesanan diambil atau diantar.'
+        : 'Kartu stamp gratis, diberikan bersama pesanan pertamamu. Stamp ditambahkan saat pesanan diantar.',
       `Kartu penuh (${stampsNeeded} stamp) bisa ditukar dengan 1 ${productName(stampReward)} gratis. Satu kartu untuk satu hadiah.`,
       'Stamp dan hadiah tidak bisa diuangkan, dan kartu yang hilang tidak bisa diganti.',
       `Ketentuan bisa berubah sewaktu-waktu — info terbaru di Instagram @${contact.instagram}.`,

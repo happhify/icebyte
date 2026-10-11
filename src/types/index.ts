@@ -64,6 +64,16 @@ export interface Testimonial {
   source?: string
 }
 
+export interface PoBatch {
+  name: string
+  /** YYYY-MM-DD, hari pertama form PO dibuka. */
+  orderStart: string
+  /** YYYY-MM-DD, hari terakhir form PO dibuka (ikut dihitung). */
+  orderEnd: string
+  /** YYYY-MM-DD, tanggal ambil/antar semua pesanan batch ini. */
+  fulfillmentDate: string
+}
+
 export interface WhatsAppAdmin {
   label: string
   /** Ditampilkan apa adanya. Format 08xx, +62, atau 62xx diterima. */
@@ -101,8 +111,12 @@ export interface SiteConfig {
     inspiration: string[]
   }
   textures: TextureInfo[]
+  /** PO dibuka per batch. Di luar masa batch, form PO ditutup. */
+  batches: PoBatch[]
   products: Product[]
   bundles: Bundle[]
+  /** Metode yang bisa dipilih di form. Kalau cuma satu, pilihan metode tidak ditampilkan. */
+  fulfillmentMethods: FulfillmentMethod[]
   delivery: {
     /** Area jangkauan antar, mis. "sekitar Telkom University". */
     area: string
@@ -145,8 +159,6 @@ export interface OrderForm {
   name: string
   phone: string
   lines: OrderLine[]
-  /** YYYY-MM-DD */
-  date: string
   method: FulfillmentMethod | ''
   address: string
   notes: string
@@ -163,7 +175,7 @@ export interface OrderErrors {
   phone?: string
   items?: string
   lines?: Record<string, LineErrors>
-  date?: string
+  batch?: string
   method?: string
   address?: string
 }
