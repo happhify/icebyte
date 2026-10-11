@@ -160,7 +160,7 @@ tombol di bawah foto utama. Pakai rasio 4:3, lebar ±1200px.
 
 ## 4. Yang masih perlu diisi / dicek
 
-Semua placeholder sudah terisi (WhatsApp admin: **0882-7947-0512**, di `contact.whatsappAdmins`. Kalau diisi lebih
+Semua placeholder sudah terisi (WhatsApp admin: **0882-7947-0512** dan **0852-4841-2330**, di `contact.whatsappAdmins`. Kalau diisi lebih
 dari satu admin, pembeli bisa memilih admin tujuan di form PO).
 
 Bagian bertanda **DRAFT** di `src/config/site.ts` sudah terisi tapi sebaiknya dicek ulang oleh tim:

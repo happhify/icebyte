@@ -16,7 +16,8 @@ const contact = {
   // Pembeli memilih admin di form PO. Nomor ditampilkan apa adanya;
   // format "0812...", "+62 812..." atau "62812..." otomatis diubah ke "62812..." untuk link WA.
   whatsappAdmins: [
-    { label: 'Admin Baik', phone: '0882-7947-0512' },
+    { label: 'Admin 1', phone: '0882-7947-0512' },
+    { label: 'Admin 2', phone: '0852-4841-2330' },
   ],
   // Username saja, tanpa "@" dan tanpa link.
   instagram: 'byte.ice',
