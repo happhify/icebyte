@@ -67,7 +67,7 @@ const products: Product[] = [
     description:
       'Teh susu dengan aroma teh panggang yang khas, manis dan creamy. Pas jadi teman es krim gabin di sela kelas.',
     texture: 'drink',
-    price: 8000,
+    price: 13000,
     deliverable: true,
     optionGroups: [],
     image: 'images/milk-tea.jpg',
@@ -76,7 +76,36 @@ const products: Product[] = [
 ]
 
 // Kosong = section Bundle, menu navbar Bundle, dan pilihan bundle di form disembunyikan.
-const bundles: Bundle[] = []
+const bundles: Bundle[] = [
+  {
+    id: 'full-stack',
+    name: 'Full Stack',
+    description: 'Satu Es Krim Gabin rasa pilihanmu plus satu Roasted Milk Tea. Paket lengkap: yang dingin-renyah dan yang bisa diseruput.',
+    price: 22000,
+    items: [
+      { productId: 'sandwich', qty: 1 },
+      { productId: 'milk-tea', qty: 1 },
+    ],
+  },
+  {
+    id: 'byte-trio',
+    name: 'Byte Trio',
+    description: 'Tiga Es Krim Gabin, satu dari tiap rasa. Cobain semua varian sekaligus!',
+    price: 27000,
+    items: [
+      { productId: 'sandwich', qty: 1, options: { rasa: 'Oreo Mint' } },
+      { productId: 'sandwich', qty: 1, options: { rasa: 'Strawberry' } },
+      { productId: 'sandwich', qty: 1, options: { rasa: 'Cokelat' } },
+    ],
+  },
+  {
+    id: 'byte-pair',
+    name: 'Byte Pair',
+    description: 'Dua Roasted Milk Tea buat kamu dan bestie. Berdua lebih hemat.',
+    price: 25000,
+    items: [{ productId: 'milk-tea', qty: 2 }],
+  },
+]
 
 const deliverableNames = products.filter((p) => p.deliverable).map((p) => p.name)
 const pickupOnly = products.filter((p) => !p.deliverable)

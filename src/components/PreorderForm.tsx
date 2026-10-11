@@ -304,7 +304,7 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
       <div className="mx-auto max-w-6xl">
         <SectionHeading
           id="pesan-title"
-          eyebrow="04 · pre-order"
+          eyebrow="05 · pre-order"
           title="Pre-order sekarang"
           description="Isi form, cek total, lalu kirim ke WhatsApp. PO ditutup H-1 sebelum tanggal ambil."
         />

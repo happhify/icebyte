@@ -26,7 +26,15 @@ export function Bundles({ onAdd }: BundlesProps) {
           />
         </Reveal>
 
-        <ul className="mx-auto grid max-w-4xl gap-6 md:grid-cols-2">
+        <ul
+          className={`mx-auto grid gap-6 ${
+            site.bundles.length > 2
+              ? 'max-w-6xl md:grid-cols-2 lg:grid-cols-3'
+              : site.bundles.length === 2
+                ? 'max-w-4xl md:grid-cols-2'
+                : 'max-w-md'
+          }`}
+        >
           {site.bundles.map((bundle, index) => {
             const contents = getLineContents({ kind: 'bundle', itemId: bundle.id })
             const pickupOnly = contents.filter(({ product }) => !product.deliverable)
@@ -47,10 +55,13 @@ export function Bundles({ onAdd }: BundlesProps) {
                   <p className="mt-2 text-cocoa">{bundle.description}</p>
 
                   <ul className="mt-4 space-y-1.5" aria-label={`Isi ${bundle.name}`}>
-                    {contents.map(({ product, qty }) => (
-                      <li key={product.id} className="flex items-baseline gap-2">
+                    {contents.map(({ product, qty, options }, i) => (
+                      <li key={i} className="flex items-baseline gap-2">
                         <span className="font-mono text-sm font-bold text-ice-deep">{qty}x</span>
-                        <span>{product.name}</span>
+                        <span>
+                          {product.name}
+                          {options ? <span className="text-cocoa"> — {Object.values(options).join(', ')}</span> : null}
+                        </span>
                       </li>
                     ))}
                   </ul>

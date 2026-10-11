@@ -44,10 +44,21 @@ const TEST_BUNDLE: Bundle = {
     { productId: 'milk-tea', qty: 1 },
   ],
 }
+const TEST_TRIO: Bundle = {
+  id: 'trio-test',
+  name: 'Trio Test',
+  description: 'Bundle contoh dengan varian tetap.',
+  price: 27000,
+  items: [
+    { productId: 'sandwich', qty: 1, options: { rasa: 'Oreo Mint' } },
+    { productId: 'sandwich', qty: 1, options: { rasa: 'Strawberry' } },
+  ],
+}
 // Dipasang saat file dimuat (bukan di beforeAll) karena sebagian pesan dibuat saat describe dikumpulkan.
-site.bundles.push(TEST_BUNDLE)
+site.bundles.push(TEST_BUNDLE, TEST_TRIO)
 afterAll(() => {
   site.bundles.splice(site.bundles.indexOf(TEST_BUNDLE), 1)
+  site.bundles.splice(site.bundles.indexOf(TEST_TRIO), 1)
 })
 
 /** Ubah sementara data sebuah produk di config selama satu test, lalu kembalikan seperti semula. */
@@ -223,6 +234,17 @@ describe('validasi form', () => {
   it('varian bundle mencakup semua produk di dalamnya', () => {
     const keys = getOptionFields({ kind: 'bundle', itemId: TEST_BUNDLE.id }).map((f) => f.key)
     expect(keys).toEqual(['sandwich.rasa'])
+  })
+
+  it('varian tetap di bundle tidak ditanyakan & tampil di pesan WA', () => {
+    const trio = line({ kind: 'bundle', itemId: TEST_TRIO.id })
+    expect(getOptionFields(trio)).toEqual([])
+    expect(validateOrder(validForm({ lines: [trio] }), NOW)).toEqual({})
+    expect(getBundleNormalPrice(TEST_TRIO)).toBe(product('sandwich').price * 2)
+
+    const message = buildWhatsAppMessage(validForm({ lines: [trio] }))
+    expect(message).toContain('- 1x Es Krim Gabin (Rasa: Oreo Mint)')
+    expect(message).toContain('- 1x Es Krim Gabin (Rasa: Strawberry)')
   })
 
   it('nomor WhatsApp dinormalisasi & divalidasi', () => {

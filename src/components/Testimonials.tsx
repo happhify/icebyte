@@ -11,7 +11,7 @@ export function Testimonials() {
     <section id="testimoni" aria-labelledby="testimoni-title" className="border-y-2 border-chocolate bg-cream px-4 py-20">
       <div className="mx-auto max-w-5xl">
         <Reveal>
-          <SectionHeading id="testimoni-title" eyebrow="06 · testimoni" title="Kata mereka" />
+          <SectionHeading id="testimoni-title" eyebrow="07 · testimoni" title="Kata mereka" />
         </Reveal>
 
         {testimonials.length === 0 ? (

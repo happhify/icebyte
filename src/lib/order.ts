@@ -58,8 +58,15 @@ export function getBundle(id: string): Bundle | undefined {
   return site.bundles.find((b) => b.id === id)
 }
 
+export interface LineContent {
+  product: Product
+  qty: number
+  /** Varian tetap dari isi bundle. */
+  options?: Record<string, string>
+}
+
 /** Isi 1 unit baris pesanan. Bundle dipecah menjadi produk-produknya. */
-export function getLineContents(ref: ItemRef): { product: Product; qty: number }[] {
+export function getLineContents(ref: ItemRef): LineContent[] {
   if (!ref.itemId) return []
   if (ref.kind === 'product') {
     const product = getProduct(ref.itemId)
@@ -69,7 +76,7 @@ export function getLineContents(ref: ItemRef): { product: Product; qty: number }
   if (!bundle) return []
   return bundle.items.flatMap((item) => {
     const product = getProduct(item.productId)
-    return product ? [{ product, qty: item.qty }] : []
+    return product ? [{ product, qty: item.qty, options: item.options }] : []
   })
 }
 
@@ -88,13 +95,13 @@ export interface OptionField {
   group: OptionGroup
 }
 
-/** Semua pilihan varian yang wajib diisi untuk sebuah baris. */
+/** Semua pilihan varian yang wajib diisi untuk sebuah baris (varian tetap di bundle tidak termasuk). */
 export function getOptionFields(ref: ItemRef): OptionField[] {
   const seen = new Set<string>()
-  return getLineContents(ref).flatMap(({ product }) =>
+  return getLineContents(ref).flatMap(({ product, options }) =>
     product.optionGroups.flatMap((group) => {
       const key = optionKey(product.id, group.id)
-      if (seen.has(key)) return []
+      if (options?.[group.id] || seen.has(key)) return []
       seen.add(key)
       return [{ key, product, group }]
     }),
@@ -320,9 +327,11 @@ function describeLine(line: OrderLine): string[] {
     const options = describeOptions(line, line.itemId)
     return options ? [options] : []
   }
-  return getLineContents(line).map(({ product, qty }) => {
-    const options = describeOptions(line, product.id)
-    return `- ${qty}x ${product.name}${options ? ` (${options})` : ''}`
+  return getLineContents(line).map(({ product, qty, options }) => {
+    const details = product.optionGroups
+      .map((group) => `${group.label}: ${options?.[group.id] ?? line.options[optionKey(product.id, group.id)] ?? '-'}`)
+      .join(', ')
+    return `- ${qty}x ${product.name}${details ? ` (${details})` : ''}`
   })
 }
 

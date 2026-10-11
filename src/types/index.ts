@@ -45,6 +45,8 @@ export interface GalleryImage {
 export interface BundleItem {
   productId: string
   qty: number
+  /** Varian tetap, key = id grup opsi (mis. { rasa: 'Strawberry' }). Grup yang diisi di sini tidak ditanyakan di form. */
+  options?: Record<string, string>
 }
 
 export interface Bundle {
