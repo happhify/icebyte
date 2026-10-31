@@ -20,6 +20,7 @@ import {
   parseISODate,
   getOptionFields,
   getPackagingNotes,
+  getProductionUnits,
   hasErrors,
   normalizePhone,
   validateOrder,
@@ -444,3 +445,24 @@ describe('rekap order', () => {
   })
 })
 
+describe('satuan produksi', () => {
+  it('bundle dipecah per produk dan varian, qty dikali jumlah baris', () => {
+    const trio = line({ kind: 'bundle', itemId: TEST_TRIO.id, qty: 2 })
+    expect(getProductionUnits([gabinLine(3), trio])).toEqual([
+      { product: 'Es Krim Gabin', variant: 'Oreo Mint', qty: 3 },
+      { product: 'Es Krim Gabin', variant: 'Oreo Mint', qty: 2 },
+      { product: 'Es Krim Gabin', variant: 'Strawberry', qty: 2 },
+    ])
+  })
+
+  it('varian dari pilihan pembeli di dalam bundle ikut terbaca; produk tanpa varian = ""', () => {
+    expect(getProductionUnits([comboLine(1)])).toEqual([
+      { product: 'Es Krim Gabin', variant: 'Strawberry', qty: 1 },
+      { product: TEST_DRINK.name, variant: '', qty: 1 },
+    ])
+  })
+
+  it('baris kosong dilewati', () => {
+    expect(getProductionUnits([line({ kind: 'product', itemId: '' })])).toEqual([])
+  })
+})

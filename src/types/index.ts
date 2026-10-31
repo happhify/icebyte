@@ -187,8 +187,53 @@ export interface OrderErrors {
   address?: string
 }
 
-/** Asal pesanan: form website, atau chat WA yang diinput admin lewat mode admin (?admin). */
+/** Asal pesanan: form website, atau chat WA yang diinput admin di halaman admin. */
 export type OrderSource = 'Website' | 'Chat WA'
+
+/** Status pesanan di halaman admin. Pesanan Batal tidak dihitung di ringkasan produksi. */
+export type OrderStatus = 'Baru' | 'Lunas' | 'Diantar' | 'Batal'
+
+/** Satu satuan produksi, mis. 2x Es Krim Gabin varian "Oreo Mint". Varian kosong = produk tanpa varian. */
+export interface ProductionUnit {
+  product: string
+  variant: string
+  qty: number
+}
+
+/** Data pesanan yang dikirim ke server (tanpa `key` baris). */
+export interface OrderInput {
+  name: string
+  phone: string
+  method: FulfillmentMethod
+  address: string
+  notes: string
+  /** Label admin WA tujuan, mis. "Admin 1". */
+  admin: string
+  lines: { kind: ItemKind; itemId: string; qty: number; options: Record<string, string> }[]
+}
+
+/** Pesanan tersimpan, seperti dikirim API admin. Nama produk, varian, dan total adalah snapshot saat disimpan. */
+export interface StoredOrder {
+  id: string
+  /** ISO 8601. */
+  createdAt: string
+  updatedAt: string
+  source: OrderSource
+  batch: string
+  /** YYYY-MM-DD. */
+  deliveryDate: string
+  name: string
+  phone: string
+  method: FulfillmentMethod
+  address: string
+  notes: string
+  admin: string
+  lines: OrderInput['lines']
+  units: ProductionUnit[]
+  itemsSummary: string
+  total: number
+  status: OrderStatus
+}
 
 /** Satu baris rekap. Dikirim ke Google Form sesuai `orderLog.fields`. */
 export interface OrderLogRecord {

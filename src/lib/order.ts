@@ -1,4 +1,4 @@
-import { site } from '../config/site'
+import { site } from '../config/site.js'
 import type {
   Bundle,
   FulfillmentMethod,
@@ -9,9 +9,11 @@ import type {
   OrderLine,
   OrderLogRecord,
   OrderSource,
+  OrderStatus,
+  ProductionUnit,
   PoBatch,
   Product,
-} from '../types'
+} from '../types/index.js'
 
 type ItemRef = Pick<OrderLine, 'kind' | 'itemId'>
 
@@ -474,4 +476,23 @@ export function buildOrderLogFormBody(
     if (field) body.append(field, String(record[key]))
   }
   return body
+}
+
+/* ------------------------------------------------------------------ */
+/* Rekap pesanan (server & halaman admin)                              */
+/* ------------------------------------------------------------------ */
+
+export const ORDER_STATUSES: OrderStatus[] = ['Baru', 'Lunas', 'Diantar', 'Batal']
+
+/** Pecah pesanan ke satuan produksi: bundle jadi produk-produknya, varian ditulis sebagai label pilihan. */
+export function getProductionUnits(lines: OrderLine[]): ProductionUnit[] {
+  return lines.flatMap((line) =>
+    getLineContents(line).map(({ product, qty, options }) => ({
+      product: product.name,
+      variant: product.optionGroups
+        .map((group) => options?.[group.id] ?? line.options[optionKey(product.id, group.id)] ?? '')
+        .join(' / '),
+      qty: qty * line.qty,
+    })),
+  )
 }

@@ -1,4 +1,4 @@
-import type { Bundle, FaqItem, FulfillmentMethod, PoBatch, Product, SiteConfig } from '../types'
+import type { Bundle, FaqItem, FulfillmentMethod, PoBatch, Product, SiteConfig } from '../types/index.js'
 
 /**
  * ============================================================
