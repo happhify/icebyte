@@ -1,5 +1,6 @@
 import { site } from '../src/config/site.js'
 import {
+  ORDER_LIMITS,
   ORDER_STATUSES,
   calculateOrderTotal,
   createOrderId,
@@ -18,9 +19,14 @@ export interface ApiResult {
 }
 
 const ORDER_ID = /^IB-\d{4}-[A-HJ-NP-Z2-9]{4}$/
-const LIMITS = { name: 80, phone: 30, address: 200, notes: 300 } as const
-const MAX_LINES = 20
-const MAX_QTY = 99
+const LIMITS = {
+  name: ORDER_LIMITS.name,
+  phone: ORDER_LIMITS.phone,
+  address: ORDER_LIMITS.address,
+  notes: ORDER_LIMITS.notes,
+} as const
+const MAX_LINES = ORDER_LIMITS.lines
+const MAX_QTY = ORDER_LIMITS.qty
 
 const invalid = (error: string, fields?: OrderErrors): ApiResult => ({
   status: 400,

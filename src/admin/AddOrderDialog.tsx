@@ -5,6 +5,7 @@ import { LineEditor } from '../components/LineEditor'
 import { site } from '../config/site'
 import {
   METHOD_LABELS,
+  ORDER_LIMITS,
   buildOrderPayload,
   calculateOrderTotal,
   createLine,
@@ -132,7 +133,7 @@ export function AddOrderDialog({ open, defaultBatch, onClose, onSaved, onError }
               Nama
             </label>
             <input
-              id="ao-name"
+              id="ao-name" maxLength={ORDER_LIMITS.name}
               className="field"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -146,7 +147,7 @@ export function AddOrderDialog({ open, defaultBatch, onClose, onSaved, onError }
               No. WhatsApp
             </label>
             <input
-              id="ao-phone"
+              id="ao-phone" maxLength={ORDER_LIMITS.phone}
               type="tel"
               inputMode="tel"
               className="field"
@@ -228,7 +229,7 @@ export function AddOrderDialog({ open, defaultBatch, onClose, onSaved, onError }
               Lokasi antar
             </label>
             <input
-              id="ao-address"
+              id="ao-address" maxLength={ORDER_LIMITS.address}
               className="field"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
@@ -243,7 +244,7 @@ export function AddOrderDialog({ open, defaultBatch, onClose, onSaved, onError }
           <label htmlFor="ao-notes" className={labelClass}>
             Catatan <span className="font-normal text-cocoa">(opsional)</span>
           </label>
-          <textarea id="ao-notes" rows={2} className="field" value={notes} onChange={(e) => setNotes(e.target.value)} />
+          <textarea id="ao-notes" maxLength={ORDER_LIMITS.notes} rows={2} className="field" value={notes} onChange={(e) => setNotes(e.target.value)} />
         </div>
 
         <FieldError id="ao-server-error">{serverError}</FieldError>

@@ -121,6 +121,9 @@ export function getUnitPrice(ref: ItemRef): number {
   return getProduct(ref.itemId)?.price ?? 0
 }
 
+/** Batas isian pesanan — dipakai form (browser) dan server, supaya pesanan yang lolos di form pasti tersimpan. */
+export const ORDER_LIMITS = { name: 80, phone: 30, address: 200, notes: 300, lines: 20, qty: 99 } as const
+
 function isValidQty(qty: number): boolean {
   return Number.isInteger(qty) && qty >= 1
 }
@@ -276,6 +279,7 @@ export function normalizePhone(raw: string): string {
 
 export function validatePhone(raw: string): string | undefined {
   if (!raw.trim()) return 'Nomor WhatsApp wajib diisi.'
+  if (raw.trim().length > ORDER_LIMITS.phone) return 'Nomor WhatsApp terlalu panjang.'
   if (/[^\d\s+().-]/.test(raw) || !/^628\d{7,12}$/.test(normalizePhone(raw))) {
     return 'Nomor WhatsApp tidak valid. Contoh: 081234567890.'
   }
@@ -293,6 +297,7 @@ export function validateLine(line: OrderLine): LineErrors {
     return errors
   }
   if (!isValidQty(line.qty)) errors.qty = 'Jumlah minimal 1.'
+  else if (line.qty > ORDER_LIMITS.qty) errors.qty = `Jumlah maksimal ${ORDER_LIMITS.qty}.`
 
   const optionErrors: Record<string, string> = {}
   for (const { key, group } of getOptionFields(line)) {
@@ -308,12 +313,15 @@ export function validateOrder(form: OrderForm, now: Date = new Date()): OrderErr
   const errors: OrderErrors = {}
 
   if (!form.name.trim()) errors.name = 'Nama wajib diisi.'
+  else if (form.name.trim().length > ORDER_LIMITS.name) errors.name = `Nama maksimal ${ORDER_LIMITS.name} karakter.`
 
   const phoneError = validatePhone(form.phone)
   if (phoneError) errors.phone = phoneError
 
   if (form.lines.length === 0) {
     errors.items = 'Tambahkan minimal 1 item.'
+  } else if (form.lines.length > ORDER_LIMITS.lines) {
+    errors.items = `Maksimal ${ORDER_LIMITS.lines} item per pesanan.`
   } else {
     const lineErrors: Record<string, LineErrors> = {}
     for (const line of form.lines) {
@@ -333,6 +341,9 @@ export function validateOrder(form: OrderForm, now: Date = new Date()): OrderErr
     const conflict = getDeliveryConflict(form.lines)
     if (conflict) errors.method = conflict
     if (!form.address.trim()) errors.address = 'Lokasi antar wajib diisi.'
+    else if (form.address.trim().length > ORDER_LIMITS.address) {
+      errors.address = `Lokasi antar maksimal ${ORDER_LIMITS.address} karakter.`
+    }
   }
 
   return errors

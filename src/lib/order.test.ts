@@ -438,3 +438,22 @@ describe('satuan produksi', () => {
     expect(getProductionUnits([line({ kind: 'product', itemId: '' })])).toEqual([])
   })
 })
+
+describe('batas isian (sama dengan server)', () => {
+  it('nama lebih dari 80 karakter ditolak', () => {
+    expect(validateOrder(validForm({ name: 'a'.repeat(81) }), NOW).name).toContain('80')
+    expect(validateOrder(validForm({ name: 'a'.repeat(80) }), NOW).name).toBeUndefined()
+  })
+  it('lokasi antar lebih dari 200 karakter ditolak', () => {
+    const errors = validateOrder(validForm({ method: 'delivery', address: 'a'.repeat(201) }), NOW)
+    expect(errors.address).toContain('200')
+  })
+  it('jumlah lebih dari 99 ditolak', () => {
+    expect(validateOrder(validForm({ lines: [gabinLine(100)] }), NOW).lines).toBeDefined()
+    expect(validateOrder(validForm({ lines: [gabinLine(99)] }), NOW).lines).toBeUndefined()
+  })
+  it('lebih dari 20 item ditolak', () => {
+    const lines = Array.from({ length: 21 }, () => gabinLine(1))
+    expect(validateOrder(validForm({ lines }), NOW).items).toContain('20')
+  })
+})

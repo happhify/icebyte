@@ -3,6 +3,7 @@ import { site } from '../config/site'
 import { isPlaceholder } from '../lib/links'
 import {
   METHOD_LABELS,
+  ORDER_LIMITS,
   buildOrderPayload,
   buildWhatsAppMessage,
   buildWhatsAppUrl,
@@ -195,6 +196,7 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
                 </label>
                 <input
                   id="po-name"
+                  maxLength={ORDER_LIMITS.name}
                   name="name"
                   autoComplete="name"
                   className="field"
@@ -212,6 +214,7 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
                 </label>
                 <input
                   id="po-phone"
+                  maxLength={ORDER_LIMITS.phone}
                   name="phone"
                   type="tel"
                   inputMode="tel"
@@ -319,6 +322,7 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
                   </label>
                   <input
                     id="po-address"
+                    maxLength={ORDER_LIMITS.address}
                     className="field"
                     value={address}
                     onChange={(e) => edit(setAddress)(e.target.value)}
@@ -341,7 +345,7 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
                 <textarea
                   id="po-notes"
                   rows={3}
-                  maxLength={300}
+                  maxLength={ORDER_LIMITS.notes}
                   className="field"
                   value={notes}
                   onChange={(e) => edit(setNotes)(e.target.value)}

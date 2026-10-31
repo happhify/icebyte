@@ -1,5 +1,6 @@
 import { site } from '../config/site'
 import {
+  ORDER_LIMITS,
   formatRupiah,
   getLineTotal,
   getOptionFields,
@@ -97,6 +98,7 @@ export function LineEditor({ line, index, errors, canRemove, onChange, onRemove 
               type="number"
               inputMode="numeric"
               min={1}
+              max={ORDER_LIMITS.qty}
               step={1}
               className="field w-16 text-center"
               value={Number.isFinite(line.qty) ? line.qty : ''}
@@ -107,7 +109,7 @@ export function LineEditor({ line, index, errors, canRemove, onChange, onRemove 
             <button
               type="button"
               className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border-2 border-chocolate bg-cream"
-              onClick={() => setQty((Number.isFinite(line.qty) ? line.qty : 0) + 1)}
+              onClick={() => setQty(Math.min((Number.isFinite(line.qty) ? line.qty : 0) + 1, ORDER_LIMITS.qty))}
               aria-label={`Tambah jumlah item ${index + 1}`}
             >
               <IconPlus className="size-4" />
