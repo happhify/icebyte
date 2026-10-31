@@ -7,6 +7,12 @@ export default defineConfig({
   // Path relatif supaya hasil build jalan di Vercel (root) maupun GitHub Pages (/nama-repo/).
   base: './',
   plugins: [react(), tailwindcss()],
+  build: {
+    // Dua halaman: website publik (index.html) dan halaman admin rekap pesanan (admin.html → /admin).
+    rolldownOptions: {
+      input: { main: 'index.html', admin: 'admin.html' },
+    },
+  },
   test: {
     include: ['src/**/*.test.ts', 'server/**/*.test.ts'],
     environment: 'node',

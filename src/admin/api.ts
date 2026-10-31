@@ -11,8 +11,11 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   })
   if (response.status === 401) throw new UnauthorizedError('Sesi berakhir, silakan login lagi.')
   if (response.status === 204) return undefined as T
-  const body = (await response.json().catch(() => ({}))) as { error?: string }
-  if (!response.ok) throw new Error(body.error ?? `Gagal (${response.status}). Coba lagi.`)
+  // Balasan bukan JSON (mis. halaman HTML karena /api tidak tersedia) tidak boleh dianggap data.
+  const isJson = (response.headers.get('content-type') ?? '').includes('application/json')
+  const body = isJson ? ((await response.json().catch(() => null)) as { error?: string } | null) : null
+  if (!response.ok) throw new Error(body?.error ?? `Gagal (${response.status}). Coba lagi.`)
+  if (!body) throw new Error('Server rekap tidak merespons dengan benar. Coba lagi nanti.')
   return body as T
 }
 
