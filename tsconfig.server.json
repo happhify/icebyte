@@ -6,9 +6,9 @@
     "types": ["node"],
     "skipLibCheck": true,
 
-    /* Vercel Functions: ESM, import relatif wajib berakhiran .js */
-    "module": "esnext",
-    "moduleResolution": "bundler",
+    /* Vercel Functions: ESM. nodenext memaksa import relatif berakhiran .js (kalau lupa → error saat build). */
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,
