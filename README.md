@@ -2,9 +2,11 @@
 
 Landing page + form pre-order untuk **IceByte**, usaha es krim kampus yang dijalankan mahasiswa S1 Teknik Komputer
 Telkom University. Domain: **https://icebyte.co**
-Satu halaman (single page), tanpa backend, tanpa database, tanpa login — pre-order dikirim lewat link `wa.me`.
+Satu halaman (single page) — pre-order dikirim lewat link `wa.me`, dan setiap pesanan ikut tersimpan ke database
+untuk direkap di halaman admin **`/admin`** (Vercel Functions + Neon Postgres).
 
-**Stack:** Vite · React · TypeScript · Tailwind CSS v4 · Vitest · Oxlint (linter bawaan template Vite terbaru)
+**Stack:** Vite · React · TypeScript · Tailwind CSS v4 · Vitest · Oxlint (linter bawaan template Vite terbaru) ·
+Vercel Functions · Neon Postgres (`@neondatabase/serverless`) · `write-excel-file`
 
 ---
 
@@ -63,12 +65,17 @@ src/
   hooks/              ← hook kecil (prefers-reduced-motion)
   components/         ← Navbar, Hero, About, Menu, Bundles, HowToOrder, PreorderForm,
                         ByteSquad, Testimonials, PatchUpdate, Faq, Footer (+ komponen kecil pendukung)
+  admin/              ← halaman admin rekap pesanan (/admin): login, ringkasan produksi, tabel, Excel
   App.tsx             ← urutan section
   index.css           ← design tokens (warna dari logo, font, radius) + Tailwind
   assets/             ← logo.webp (lengkap), logo-mark.webp (scoop), logo-wordmark.webp (tulisan)
 public/
   favicon.png, favicon-192.png, apple-touch-icon.png, og-image.png   ← dibuat dari logo
 index.html            ← meta title, description, Open Graph
+admin.html            ← halaman admin (bundle terpisah, noindex)
+api/                  ← Vercel Functions: POST /api/orders (publik) + /api/admin/* (perlu login)
+server/               ← logika backend: validasi pesanan, database, sesi login, waktu WIB (+ test)
+vercel.json           ← cleanUrls, supaya /admin membuka admin.html
 ```
 
 ---
@@ -139,37 +146,40 @@ menampilkan jadwal batch berikutnya (kalau sudah diisi). Untuk batch baru, tamba
 { name: 'Batch 2', orderStart: '2026-10-19', orderEnd: '2026-10-22', fulfillmentDate: '2026-10-25' },
 ```
 
-### Rekap order (Google Form → Google Sheets)
+### Rekap order & halaman admin
 
-Setiap kali pembeli menekan "Kirim ke WhatsApp", website diam-diam mengisi sebuah Google Form, dan jawabannya masuk ke
-Google Sheets — satu pesanan satu baris (ID order, sumber, batch, nama, no. WA, lokasi, pesanan, total, catatan, admin).
-ID order yang sama ikut tertulis di pesan WhatsApp, jadi rekap bisa dicocokkan dengan chat. Rekap mencatat pesanan yang
-**dikirim dari form**; tandai yang benar-benar lunas lewat kolom **Status** (ditambah manual di sheet).
+Setiap kali pembeli menekan "Kirim ke WhatsApp", pesanan ikut tersimpan ke database (di latar belakang — WhatsApp
+tetap langsung terbuka, dan kalau server bermasalah pesanan tetap sampai lewat chat). Server memeriksa ulang semua
+isian dan **menghitung total sendiri** dari harga di `site.ts`. ID order (mis. `IB-1031-K3F9`) ikut tertulis di pesan
+WhatsApp, jadi chat bisa dicocokkan dengan rekap.
 
-Cara pasang (sekali saja, tanpa Apps Script):
+**Halaman admin: `https://icebyte.vercel.app/admin`** (atau `icebyte.co/admin` setelah domain aktif)
 
-1. Buat Google Form baru (mis. "Rekap Order IceByte"). Tambahkan 12 pertanyaan **Jawaban singkat**, tidak wajib, dengan
-   judul: ID Order, Sumber, Batch, Tanggal antar, Nama, No. WA, Metode, Lokasi, Pesanan, Total, Catatan, Admin.
-2. **Setelan**: matikan pengumpulan email dan batasan "hanya pengguna di organisasi" (kalau pakai akun kampus).
-3. Tab **Jawaban → Tautkan ke Spreadsheet** → pilih spreadsheet rekap. Jawaban masuk ke tab "Form Responses 1"
-   (kolom A = Timestamp otomatis). Tambahkan kolom **Status** di sebelah kanan kolom terakhir untuk diisi admin.
-4. Menu ⋮ → **Dapatkan link isian otomatis** (Get pre-filled link). Isi tiap jawaban dengan kode ini: ID Order = `id`,
-   Sumber = `source`, Batch = `batch`, Tanggal antar = `deliveryDate`, Nama = `name`, No. WA = `phone`,
-   Metode = `method`, Lokasi = `address`, Pesanan = `items`, Total = `total`, Catatan = `notes`, Admin = `admin`.
-   Klik **Dapatkan link → Salin link**.
-5. Dari link itu, isi `orderLog` di `src/config/site.ts`: `formUrl` = bagian sebelum `/viewform` diganti `/formResponse`,
-   dan `fields` = pasangan kode → `entry.xxx`, mis. `{ id: 'entry.123456', source: 'entry.234567', ... }`.
+- Login dengan **satu password bersama** (sesi berlaku 30 hari di browser yang sama).
+- Filter per batch, **ringkasan produksi** per rasa (isi bundle ikut dipecah; pesanan Batal tidak dihitung), omzet.
+- Tabel pesanan (kartu di HP) dengan status **Baru / Lunas / Diantar / Batal** — langsung tersimpan saat diubah.
+- **Unduh Excel** (`.xlsx`): sheet *Pesanan* + sheet *Produksi*.
+- **+ Pesanan dari chat WA**: catat pesanan yang masuk lewat chat (sumber *Chat WA*), lalu kirim ID-nya ke pembeli.
 
-Kalau `orderLog.formUrl` kosong, form PO tetap jalan tanpa rekap. Kalau judul/urutan pertanyaan di Google Form diubah,
-`entry.xxx` tidak berubah; tapi kalau pertanyaan dihapus lalu dibuat ulang, ambil lagi link isian otomatisnya.
+**Setup sekali saja (dashboard Vercel, ±5 menit):**
 
-**Pesanan dari chat WhatsApp:** admin membuka website dengan `?admin` di belakang alamat (mis. `icebyte.co/?admin`),
-mengisi form atas nama pembeli, lalu menekan **Catat ke rekap**. Pesanan tercatat dengan Sumber **Chat WA** (pesanan dari
-form biasa: **Website**), WhatsApp tidak dibuka, dan form langsung kosong lagi untuk pesanan berikutnya. Kirim ID order
-yang muncul ke pembeli supaya chat dan rekap bisa dicocokkan.
+1. Proyek **icebyte** → **Storage → Create Database → Neon** → **Connect** ke lingkungan *Production* dan *Preview*.
+   `DATABASE_URL` terpasang otomatis, dan tabel `orders` dibuat sendiri saat pertama dipakai.
+2. **Settings → Environment Variables** (centang *Production* dan *Preview*):
+   - `ADMIN_PASSWORD` — password admin pilihan tim.
+   - `SESSION_SECRET` — string acak panjang, buat dengan
+     `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
+3. **Redeploy** (atau push commit baru) supaya env baru terbaca.
 
-> Google Form ini bisa diisi siapa pun yang tahu alamatnya, jadi anggap rekap sebagai catatan — konfirmasi akhir tetap
-> lewat chat WhatsApp. Spreadsheet-nya berisi data pembeli: share hanya ke tim (akses **Dibatasi**).
+**Ganti password:** ubah `ADMIN_PASSWORD` lalu redeploy. Untuk memaksa semua admin login ulang, ganti juga
+`SESSION_SECRET`.
+
+**Develop lokal:** `npm run dev` hanya menjalankan website (form tetap jalan, penyimpanan ke rekap gagal diam-diam).
+Untuk API + admin lokal pakai Vercel CLI: `npm i -g vercel`, `vercel link`, `vercel env pull .env.local`, lalu
+`vercel dev`.
+
+> Data pembeli (nama, WA, alamat) hanya bisa dibaca lewat halaman admin yang terkunci password. Jangan bagikan
+> password admin di grup publik.
 
 ### Foto produk
 
@@ -223,7 +233,11 @@ jadi hasil build bisa jalan di root domain maupun sub-folder.
 4. Hubungkan domain: **Project → Settings → Domains** → tambahkan `icebyte.co`, lalu pasang record DNS yang
    ditampilkan Vercel di tempat kamu membeli domain.
 
-Setiap push ke branch utama otomatis ter-deploy ulang.
+Setiap push ke branch utama otomatis ter-deploy ulang. Folder `api/` otomatis menjadi Vercel Functions — lihat
+"Rekap order & halaman admin" untuk setup database dan password.
+
+> Opsi B (GitHub Pages) dan Docker hanya menyajikan website statis: form PO tetap jalan lewat WhatsApp, tetapi
+> **rekap pesanan dan halaman admin tidak tersedia** karena keduanya butuh Vercel Functions.
 
 ### Opsi B — GitHub Pages
 
@@ -276,8 +290,12 @@ Setiap push ke branch utama otomatis ter-deploy ulang.
 
 - **Alur pre-order:** form memvalidasi input (semua wajib kecuali catatan; jumlah ≥ 1; hanya bisa dikirim selama masa
   batch PO di `batches`; produk non-deliverable tidak bisa diantar; lokasi wajib kalau diantar), lalu membuka
-  `https://wa.me/<nomor>?text=<pesan ter-encode>`. Semua logika ada di `src/lib/order.ts` dan dites di `order.test.ts`.
-- **Tanggal** dihitung dari jam perangkat pengunjung.
+  `https://wa.me/<nomor>?text=<pesan ter-encode>` sambil mengirim pesanan ke `POST /api/orders`. Logika pesanan ada
+  di `src/lib/order.ts` (dipakai browser dan server) dan dites di `order.test.ts`; logika server di `server/`.
+- **Tanggal** di browser dihitung dari jam perangkat pengunjung; di server selalu **WIB** (`server/time.ts`), karena
+  server Vercel berjalan dalam UTC.
+- **Import di file yang dipakai server** (`server/`, `api/`, `src/lib/order.ts`, `src/config/site.ts`,
+  `src/types/index.ts`) wajib berakhiran `.js` — Vercel Functions berjalan sebagai ESM.
 - **Aksesibilitas:** label untuk setiap input, pesan error terhubung via `aria-describedby`, fokus keyboard terlihat,
   FAQ memakai pola accordion ARIA, target sentuh ≥ 44px, animasi mati otomatis saat `prefers-reduced-motion`.
 - **Linter:** template Vite terbaru (create-vite 9) memakai **Oxlint** sebagai linter bawaan, bukan ESLint.

@@ -61,8 +61,9 @@ icebyte/
   parameter, sehingga bisa dites dengan repository tiruan di memori.
 - Halaman admin adalah entry Vite terpisah, jadi website publik tidak ikut memuat kode admin maupun library Excel.
 
-**Tambahan dependensi:** `@neondatabase/serverless` (server), `write-excel-file` (admin, dimuat saat tombol unduh
-diklik), `@vercel/node` (dev, tipe saja). TypeScript untuk `api/` dan `server/` dicek lewat `tsconfig.server.json`
+**Tambahan dependensi:** `@neondatabase/serverless` (server) dan `write-excel-file` (admin, dimuat saat tombol unduh
+diklik). Function memakai handler Web standar (`export async function POST(request: Request)`), jadi `@vercel/node`
+tidak diperlukan. TypeScript untuk `api/` dan `server/` dicek lewat `tsconfig.server.json`
 yang dirujuk dari `tsconfig.json`, sehingga `npm run build` tetap memeriksa semuanya.
 
 ## 4. Data
