@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { site } from '../config/site'
 import { getOpenBatch } from '../lib/order'
 import type { OrderStatus, StoredOrder } from '../types'
@@ -35,17 +35,24 @@ export function AdminApp() {
     return false
   }, [])
 
+  // Nomor permintaan terakhir: balasan yang datang terlambat (filter sudah diganti) diabaikan.
+  const latestRequest = useRef(0)
+
   const load = useCallback(async () => {
+    const request = ++latestRequest.current
     try {
       const data = await fetchOrders(batch)
+      if (request !== latestRequest.current) return
       setOrders(data.orders)
       setBatches(data.batches)
       setLoadError('')
       setPhase('ready')
     } catch (error) {
+      if (request !== latestRequest.current) return
       if (handleError(error)) return
+      // Error selain 401 (mis. database belum tersambung) ditampilkan di dashboard, termasuk tepat setelah login.
       setLoadError(error instanceof Error ? error.message : 'Gagal memuat.')
-      setPhase((p) => (p === 'checking' ? 'ready' : p))
+      setPhase('ready')
     }
   }, [batch, handleError])
 
