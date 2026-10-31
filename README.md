@@ -139,6 +139,38 @@ menampilkan jadwal batch berikutnya (kalau sudah diisi). Untuk batch baru, tamba
 { name: 'Batch 2', orderStart: '2026-10-19', orderEnd: '2026-10-22', fulfillmentDate: '2026-10-25' },
 ```
 
+### Rekap order (Google Form → Google Sheets)
+
+Setiap kali pembeli menekan "Kirim ke WhatsApp", website diam-diam mengisi sebuah Google Form, dan jawabannya masuk ke
+Google Sheets — satu pesanan satu baris (ID order, sumber, batch, nama, no. WA, lokasi, pesanan, total, catatan, admin).
+ID order yang sama ikut tertulis di pesan WhatsApp, jadi rekap bisa dicocokkan dengan chat. Rekap mencatat pesanan yang
+**dikirim dari form**; tandai yang benar-benar lunas lewat kolom **Status** (ditambah manual di sheet).
+
+Cara pasang (sekali saja, tanpa Apps Script):
+
+1. Buat Google Form baru (mis. "Rekap Order IceByte"). Tambahkan 12 pertanyaan **Jawaban singkat**, tidak wajib, dengan
+   judul: ID Order, Sumber, Batch, Tanggal antar, Nama, No. WA, Metode, Lokasi, Pesanan, Total, Catatan, Admin.
+2. **Setelan**: matikan pengumpulan email dan batasan "hanya pengguna di organisasi" (kalau pakai akun kampus).
+3. Tab **Jawaban → Tautkan ke Spreadsheet** → pilih spreadsheet rekap. Jawaban masuk ke tab "Form Responses 1"
+   (kolom A = Timestamp otomatis). Tambahkan kolom **Status** di sebelah kanan kolom terakhir untuk diisi admin.
+4. Menu ⋮ → **Dapatkan link isian otomatis** (Get pre-filled link). Isi tiap jawaban dengan kode ini: ID Order = `id`,
+   Sumber = `source`, Batch = `batch`, Tanggal antar = `deliveryDate`, Nama = `name`, No. WA = `phone`,
+   Metode = `method`, Lokasi = `address`, Pesanan = `items`, Total = `total`, Catatan = `notes`, Admin = `admin`.
+   Klik **Dapatkan link → Salin link**.
+5. Dari link itu, isi `orderLog` di `src/config/site.ts`: `formUrl` = bagian sebelum `/viewform` diganti `/formResponse`,
+   dan `fields` = pasangan kode → `entry.xxx`, mis. `{ id: 'entry.123456', source: 'entry.234567', ... }`.
+
+Kalau `orderLog.formUrl` kosong, form PO tetap jalan tanpa rekap. Kalau judul/urutan pertanyaan di Google Form diubah,
+`entry.xxx` tidak berubah; tapi kalau pertanyaan dihapus lalu dibuat ulang, ambil lagi link isian otomatisnya.
+
+**Pesanan dari chat WhatsApp:** admin membuka website dengan `?admin` di belakang alamat (mis. `icebyte.co/?admin`),
+mengisi form atas nama pembeli, lalu menekan **Catat ke rekap**. Pesanan tercatat dengan Sumber **Chat WA** (pesanan dari
+form biasa: **Website**), WhatsApp tidak dibuka, dan form langsung kosong lagi untuk pesanan berikutnya. Kirim ID order
+yang muncul ke pembeli supaya chat dan rekap bisa dicocokkan.
+
+> Google Form ini bisa diisi siapa pun yang tahu alamatnya, jadi anggap rekap sebagai catatan — konfirmasi akhir tetap
+> lewat chat WhatsApp. Spreadsheet-nya berisi data pembeli: share hanya ke tim (akses **Dibatasi**).
+
 ### Foto produk
 
 Taruh foto di `public/images/` lalu isi `image: 'images/gabin.jpg'` (tanpa `/` di depan) pada produk. Selama `image` kosong, tampil

@@ -7,6 +7,8 @@ import type {
   OrderErrors,
   OrderForm,
   OrderLine,
+  OrderLogRecord,
+  OrderSource,
   PoBatch,
   Product,
 } from '../types'
@@ -363,10 +365,11 @@ function describeLine(line: OrderLine): string[] {
   })
 }
 
-export function buildWhatsAppMessage(form: OrderForm, now: Date = new Date()): string {
+export function buildWhatsAppMessage(form: OrderForm, now: Date = new Date(), orderId?: string): string {
   const batch = getOpenBatch(now)
   const out: string[] = [`Halo ${site.brand.name}! Saya mau pre-order ya.`, '']
 
+  if (orderId) out.push(`*ID Order:* ${orderId}`)
   out.push(`*Nama:* ${form.name.trim()}`)
   out.push(`*No. WA:* ${form.phone.trim()}`)
   out.push('', '*Pesanan:*')
@@ -411,4 +414,64 @@ let lineCounter = 0
 export function createLine(kind: OrderLine['kind'] = 'product', itemId = ''): OrderLine {
   lineCounter += 1
   return { key: `line-${lineCounter}`, kind, itemId, qty: 1, options: {} }
+}
+
+/* ------------------------------------------------------------------ */
+/* Rekap order (Google Sheets)                                         */
+/* ------------------------------------------------------------------ */
+
+const ORDER_ID_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+
+/** "IB-1011-K3F9": tanggal + 4 karakter acak, untuk mencocokkan rekap dengan chat WA. */
+export function createOrderId(now: Date = new Date(), random: () => number = Math.random): string {
+  const mmdd = toISODate(now).slice(5).replace('-', '')
+  const code = Array.from({ length: 4 }, () => ORDER_ID_CHARS[Math.floor(random() * ORDER_ID_CHARS.length)]).join('')
+  return `IB-${mmdd}-${code}`
+}
+
+/** Ringkasan pesanan satu sel: satu baris per item. */
+export function summarizeOrder(lines: OrderLine[]): string {
+  return lines
+    .filter((line) => line.itemId)
+    .map((line) => {
+      const details = describeLine(line).map((d) => d.replace(/^- /, ''))
+      const suffix = line.kind === 'bundle' ? ' (bundle)' : ''
+      return `${line.qty}x ${getItemName(line)}${suffix}${details.length > 0 ? ` — ${details.join('; ')}` : ''}`
+    })
+    .join('\n')
+}
+
+export function buildOrderLogRecord(
+  form: OrderForm,
+  { id, now, admin, source = 'Website' }: { id: string; now: Date; admin: string; source?: OrderSource },
+): OrderLogRecord {
+  const batch = getOpenBatch(now)
+  const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  return {
+    id,
+    source,
+    createdAt: `${toISODate(now)} ${time}`,
+    batch: batch?.name ?? '',
+    deliveryDate: batch ? formatDateLong(batch.fulfillmentDate) : '',
+    name: form.name.trim(),
+    phone: form.phone.trim(),
+    method: form.method ? METHOD_LABELS[form.method] : '',
+    address: form.method === 'delivery' ? form.address.trim() : '',
+    items: summarizeOrder(form.lines),
+    total: calculateOrderTotal(form.lines),
+    notes: form.notes.trim(),
+    admin,
+  }
+}
+
+/** Isi kiriman ke Google Form: hanya data yang punya field di `orderLog.fields`. */
+export function buildOrderLogFormBody(
+  record: OrderLogRecord,
+  fields: Partial<Record<keyof OrderLogRecord, string>> = site.orderLog.fields,
+): URLSearchParams {
+  const body = new URLSearchParams()
+  for (const [key, field] of Object.entries(fields) as [keyof OrderLogRecord, string | undefined][]) {
+    if (field) body.append(field, String(record[key]))
+  }
+  return body
 }

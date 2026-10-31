@@ -2,10 +2,13 @@ import { afterAll, describe, expect, it } from 'vitest'
 import { site } from '../config/site'
 import type { Bundle, OrderForm, OrderLine, PoBatch, Product } from '../types'
 import {
+  buildOrderLogFormBody,
+  buildOrderLogRecord,
   buildWhatsAppMessage,
   buildWhatsAppUrl,
   calculateOrderTotal,
   createLine,
+  createOrderId,
   formatRupiah,
   getBundleNormalPrice,
   getBundleSavings,
@@ -361,3 +364,67 @@ describe('pesan WhatsApp', () => {
     expect(decodeURIComponent(encoded)).toBe(message)
   })
 })
+
+describe('rekap order', () => {
+  const form = validForm({
+    phone: '+62 812 3456 7890',
+    lines: [gabinLine(2), comboLine(1)],
+    method: 'delivery',
+    address: 'Kos Melati No. 3',
+    notes: ' Jangan pedas ',
+  })
+
+  it('ID order berisi tanggal + kode acak tanpa huruf yang mirip', () => {
+    expect(createOrderId(NOW, () => 0)).toBe('IB-0928-AAAA')
+    expect(createOrderId(NOW, () => 0.999)).toBe('IB-0928-9999')
+    expect(createOrderId(NOW)).toMatch(/^IB-0928-[A-HJ-NP-Z2-9]{4}$/)
+  })
+
+  it('ID order ikut tertulis di pesan WhatsApp', () => {
+    expect(buildWhatsAppMessage(form, NOW, 'IB-0928-K3F9')).toContain('*ID Order:* IB-0928-K3F9')
+    expect(buildWhatsAppMessage(form, NOW)).not.toContain('ID Order')
+  })
+
+  it('satu baris rekap berisi data pesanan lengkap', () => {
+    const record = buildOrderLogRecord(form, { id: 'IB-0928-K3F9', now: NOW, admin: 'Admin 1' })
+    expect(record).toEqual({
+      id: 'IB-0928-K3F9',
+      source: 'Website',
+      createdAt: '2026-09-28 10:00',
+      batch: TEST_BATCH.name,
+      deliveryDate: 'Sabtu, 3 Oktober 2026',
+      name: 'Rara',
+      phone: '+62 812 3456 7890',
+      method: 'Antar',
+      address: 'Kos Melati No. 3',
+      items: [
+        '2x Es Krim Gabin — Rasa: Oreo Mint',
+        `1x ${TEST_BUNDLE.name} (bundle) — 1x Es Krim Gabin (Rasa: Strawberry); 1x Roasted Milk Tea`,
+      ].join('\n'),
+      total: calculateOrderTotal(form.lines),
+      notes: 'Jangan pedas',
+      admin: 'Admin 1',
+    })
+  })
+
+  it('pesanan dari mode admin ditandai Chat WA', () => {
+    const record = buildOrderLogRecord(form, { id: 'x', now: NOW, admin: 'Admin 1', source: 'Chat WA' })
+    expect(record.source).toBe('Chat WA')
+  })
+
+  it('dikirim ke Google Form hanya untuk data yang punya field', () => {
+    const record = buildOrderLogRecord(form, { id: 'IB-0928-K3F9', now: NOW, admin: 'Admin 1' })
+    const body = buildOrderLogFormBody(record, { id: 'entry.1', total: 'entry.2', items: 'entry.3' })
+    expect([...body.keys()]).toEqual(['entry.1', 'entry.2', 'entry.3'])
+    expect(body.get('entry.1')).toBe('IB-0928-K3F9')
+    expect(body.get('entry.2')).toBe(String(calculateOrderTotal(form.lines)))
+    expect(body.get('entry.3')).toBe(record.items)
+    expect(buildOrderLogFormBody(record, {}).toString()).toBe('')
+  })
+
+  it('lokasi dikosongkan kalau bukan antar', () => {
+    const record = buildOrderLogRecord(validForm({ address: 'sisa ketikan' }), { id: 'x', now: NOW, admin: 'A' })
+    expect(record.address).toBe('')
+  })
+})
+

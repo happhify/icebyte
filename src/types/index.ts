@@ -115,6 +115,13 @@ export interface SiteConfig {
   batches: PoBatch[]
   products: Product[]
   bundles: Bundle[]
+  /** Rekap order lewat Google Form yang tersambung ke Google Sheets (lihat README "Rekap order"). */
+  orderLog: {
+    /** URL formResponse, mis. https://docs.google.com/forms/d/e/<ID>/formResponse. Kosong = tidak direkap. */
+    formUrl: string
+    /** Nama field Google Form (entry.123…) untuk tiap data rekap. Data tanpa field tidak dikirim. */
+    fields: Partial<Record<keyof OrderLogRecord, string>>
+  }
   /** Metode yang bisa dipilih di form. Kalau cuma satu, pilihan metode tidak ditampilkan. */
   fulfillmentMethods: FulfillmentMethod[]
   delivery: {
@@ -178,4 +185,24 @@ export interface OrderErrors {
   batch?: string
   method?: string
   address?: string
+}
+
+/** Asal pesanan: form website, atau chat WA yang diinput admin lewat mode admin (?admin). */
+export type OrderSource = 'Website' | 'Chat WA'
+
+/** Satu baris rekap. Dikirim ke Google Form sesuai `orderLog.fields`. */
+export interface OrderLogRecord {
+  id: string
+  source: OrderSource
+  createdAt: string
+  batch: string
+  deliveryDate: string
+  name: string
+  phone: string
+  method: string
+  address: string
+  items: string
+  total: number
+  notes: string
+  admin: string
 }

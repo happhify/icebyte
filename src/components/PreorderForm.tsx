@@ -3,10 +3,13 @@ import { site } from '../config/site'
 import { isPlaceholder } from '../lib/links'
 import {
   METHOD_LABELS,
+  buildOrderLogFormBody,
+  buildOrderLogRecord,
   buildWhatsAppMessage,
   buildWhatsAppUrl,
   calculateOrderTotal,
   createLine,
+  createOrderId,
   formatDateLong,
   formatDateRange,
   formatRupiah,
@@ -22,7 +25,7 @@ import {
   isItemDeliverable,
   validateOrder,
 } from '../lib/order'
-import type { FulfillmentMethod, ItemKind, LineErrors, OrderForm, OrderLine } from '../types'
+import type { FulfillmentMethod, ItemKind, LineErrors, OrderForm, OrderLine, OrderLogRecord } from '../types'
 import { IconAlert, IconChat, IconMinus, IconPlus, IconTrash, IconTruck } from './Icons'
 import { SectionHeading } from './SectionHeading'
 
@@ -45,6 +48,9 @@ function describedBy(...ids: (string | false | undefined)[]) {
 
 const labelClass = 'mb-1.5 block font-semibold'
 
+/** Mode admin (buka situs dengan ?admin): input pesanan dari chat WA ke rekap, tanpa membuka WhatsApp. */
+const isAdminMode = () => new URLSearchParams(window.location.search).has('admin')
+
 /** Waktu saat ini — dipanggil dari event handler, bukan saat render. */
 const currentDate = () => new Date()
 
@@ -53,6 +59,18 @@ function openWhatsApp(url: string) {
   const win = window.open(url, '_blank')
   if (win) win.opener = null
   else window.location.href = url
+}
+
+/** Kirim rekap ke Google Form (tersimpan ke Google Sheets). Gagal kirim tidak menghalangi pesanan. */
+function sendOrderLog(record: OrderLogRecord) {
+  if (!site.orderLog.formUrl) return
+  // Google Form tidak mengizinkan CORS; no-cors tetap mengirim data walau balasannya tidak bisa dibaca.
+  fetch(site.orderLog.formUrl, {
+    method: 'POST',
+    mode: 'no-cors',
+    keepalive: true,
+    body: buildOrderLogFormBody(record),
+  }).catch(() => {})
 }
 
 /* ------------------------------------------------------------------ */
@@ -243,6 +261,10 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
   const [notes, setNotes] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [sentUrl, setSentUrl] = useState<string | null>(null)
+  // Pesanan terakhir yang sudah direkap, supaya klik kirim berulang tanpa perubahan tidak tercatat dobel.
+  const [lastLogged, setLastLogged] = useState<{ key: string; id: string } | null>(null)
+  const [adminMode] = useState(isAdminMode)
+  const [savedId, setSavedId] = useState<string | null>(null)
   const [adminIndex, setAdminIndex] = useState(0)
   const admins = site.contact.whatsappAdmins
   const admin = admins[adminIndex] ?? admins[0]
@@ -265,6 +287,7 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
     (value: T) => {
       setter(value)
       setSentUrl(null)
+      setSavedId(null)
     }
 
   const updateLine = (updated: OrderLine) => {
@@ -297,7 +320,28 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
       return
     }
 
-    const url = buildWhatsAppUrl(admin.phone, buildWhatsAppMessage(form, current))
+    const key = JSON.stringify({ form, admin: admin.phone, batch: getOpenBatch(current)?.name })
+    const isRepeat = lastLogged?.key === key
+    const id = isRepeat ? lastLogged.id : createOrderId(current)
+    if (!isRepeat) {
+      const source = adminMode ? 'Chat WA' : 'Website'
+      sendOrderLog(buildOrderLogRecord(form, { id, now: current, admin: admin.label, source }))
+      setLastLogged({ key, id })
+    }
+
+    if (adminMode) {
+      // Kosongkan form supaya admin bisa langsung input pesanan berikutnya.
+      setSavedId(id)
+      setName('')
+      setPhone('')
+      setAddress('')
+      setNotes('')
+      setSubmitted(false)
+      onLinesChange([createLine()])
+      return
+    }
+
+    const url = buildWhatsAppUrl(admin.phone, buildWhatsAppMessage(form, current, id))
     setSentUrl(url)
     openWhatsApp(url)
   }
@@ -308,7 +352,7 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
         <SectionHeading
           id="pesan-title"
           eyebrow="05 · pre-order"
-          title="Pre-order sekarang"
+          title={adminMode ? 'Input pesanan dari chat WA' : 'Pre-order sekarang'}
           description={
             batch
               ? `PO ${batch.name} dibuka ${formatDateRange(batch.orderStart, batch.orderEnd)}. Semua pesanan ${methods.includes('pickup') ? 'diambil/diantar' : 'diantar'} ${formatDateLong(batch.fulfillmentDate)}.`
@@ -328,6 +372,13 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
           </p>
 
           <div className="space-y-6">
+            {adminMode ? (
+              <p className="rounded-field border-2 border-dashed border-chocolate bg-caramel-soft px-4 py-3 text-sm">
+                <strong>Mode admin.</strong> Isi data pembeli dari chat WhatsApp, lalu tekan “Catat ke rekap”. Form
+                otomatis kosong lagi untuk pesanan berikutnya.
+              </p>
+            ) : null}
+
             {/* Data pemesan */}
             <div className="card grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
               <div>
@@ -578,19 +629,39 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
 
             <button
               type="submit"
-              disabled={!batch}
+              disabled={!batch || (adminMode && !site.orderLog.formUrl)}
               className="btn btn-primary mt-5 w-full text-base disabled:cursor-not-allowed disabled:opacity-50 sm:text-lg lg:text-base"
             >
               <IconChat className="size-5" />
-              {!batch ? 'PO sedang tutup' : admins.length > 1 ? `Kirim ke WhatsApp ${admin.label}` : 'Kirim ke WhatsApp'}
+              {!batch
+                ? 'PO sedang tutup'
+                : adminMode
+                  ? 'Catat ke rekap'
+                  : admins.length > 1
+                    ? `Kirim ke WhatsApp ${admin.label}`
+                    : 'Kirim ke WhatsApp'}
             </button>
-            <p className="mt-3 text-xs text-cocoa">
-              Pesanan diproses setelah dikonfirmasi admin. Bayar via {site.payment.methods.join(' / ')}.
-            </p>
+            {adminMode ? (
+              <p className="mt-3 text-xs text-cocoa">
+                {site.orderLog.formUrl
+                  ? 'Pesanan hanya dicatat ke rekap. WhatsApp tidak dibuka.'
+                  : 'Rekap belum aktif: isi orderLog di src/config/site.ts.'}
+              </p>
+            ) : (
+              <p className="mt-3 text-xs text-cocoa">
+                Pesanan diproses setelah dikonfirmasi admin. Bayar via {site.payment.methods.join(' / ')}.
+              </p>
+            )}
 
             {waMissing ? (
               <p className="mt-3 rounded-field border-2 border-dashed border-coral-deep px-3 py-2 text-xs text-coral-deep">
                 Nomor WhatsApp admin belum diisi di <code>src/config/site.ts</code> (<code>contact.whatsappAdmins</code>).
+              </p>
+            ) : null}
+
+            {adminMode && savedId ? (
+              <p role="status" className="mt-4 rounded-field bg-sky-soft px-3 py-2 text-sm text-ice-deep">
+                Pesanan <strong>{savedId}</strong> dikirim ke rekap. Kirim ID ini ke pembeli, lalu cek sheet.
               </p>
             ) : null}
 
