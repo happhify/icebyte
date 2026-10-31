@@ -41,13 +41,20 @@ describe('requireAdmin', () => {
     delete process.env.SESSION_SECRET
     expect(requireAdmin(withCookie())?.status).toBe(503)
   })
+  it('password admin kurang dari 12 karakter → 503 dengan pesan jelas', async () => {
+    process.env.ADMIN_PASSWORD = 'pendek123'
+    process.env.SESSION_SECRET = 'rahasia'
+    const res = requireAdmin(withCookie(`ib_admin=${createSessionToken('rahasia')}`))
+    expect(res?.status).toBe(503)
+    expect(await res?.json()).toEqual({ error: 'Password admin terlalu pendek (minimal 12 karakter)' })
+  })
   it('tanpa cookie → 401', async () => {
-    process.env.ADMIN_PASSWORD = 'pw'
+    process.env.ADMIN_PASSWORD = 'password-panjang-12'
     process.env.SESSION_SECRET = 'rahasia'
     expect(requireAdmin(withCookie())?.status).toBe(401)
   })
   it('cookie valid → null (boleh lanjut)', async () => {
-    process.env.ADMIN_PASSWORD = 'pw'
+    process.env.ADMIN_PASSWORD = 'password-panjang-12'
     process.env.SESSION_SECRET = 'rahasia'
     expect(requireAdmin(withCookie(`ib_admin=${createSessionToken('rahasia')}`))).toBeNull()
   })

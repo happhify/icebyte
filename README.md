@@ -166,7 +166,8 @@ WhatsApp, jadi chat bisa dicocokkan dengan rekap.
 1. Proyek **icebyte** → **Storage → Create Database → Neon** → **Connect** ke lingkungan *Production* dan *Preview*.
    `DATABASE_URL` terpasang otomatis, dan tabel `orders` dibuat sendiri saat pertama dipakai.
 2. **Settings → Environment Variables** (centang *Production* dan *Preview*):
-   - `ADMIN_PASSWORD` — password admin pilihan tim.
+   - `ADMIN_PASSWORD` — password admin, **minimal 12 karakter** (kalau lebih pendek, login ditolak dengan pesan).
+     Pakai gabungan beberapa kata yang tidak mudah ditebak, mis. `gabin-oreo-ungu-tult-77`, jangan nama/tanggal.
    - `SESSION_SECRET` — string acak panjang, buat dengan
      `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
 3. **Redeploy** (atau push commit baru) supaya env baru terbaca.
@@ -180,6 +181,10 @@ Untuk API + admin lokal pakai Vercel CLI: `npm i -g vercel`, `vercel link`, `ver
 
 > Data pembeli (nama, WA, alamat) hanya bisa dibaca lewat halaman admin yang terkunci password. Jangan bagikan
 > password admin di grup publik.
+
+**Opsional — batasi percobaan login:** Vercel → proyek → **Firewall → Add Rule**: jika *Request Path* sama dengan
+`/api/admin/login`, terapkan **Rate Limit** (mis. 10 request per 60 detik per IP). Ini mencegah password ditebak
+beruntun.
 
 ### Foto produk
 

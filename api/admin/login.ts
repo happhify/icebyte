@@ -5,7 +5,7 @@ const FAILED_LOGIN_DELAY_MS = 1000
 
 export async function POST(request: Request): Promise<Response> {
   const env = adminEnv()
-  if (!env) return json(503, { error: 'Password admin belum diatur' })
+  if ('error' in env) return env.error
   const body = await readJson(request, 1024)
   if (!body.ok) return body.response
   const password =

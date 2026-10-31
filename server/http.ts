@@ -32,16 +32,26 @@ export async function readJson(
   }
 }
 
-export function adminEnv(): { password: string; secret: string } | null {
+/** Password bersama harus cukup panjang supaya tidak mudah ditebak beruntun. */
+export const MIN_ADMIN_PASSWORD_LENGTH = 12
+
+/** Env login admin, atau respons 503 kalau belum diatur dengan benar. */
+export function adminEnv(): { password: string; secret: string } | { error: Response } {
   const password = process.env.ADMIN_PASSWORD ?? ''
   const secret = process.env.SESSION_SECRET ?? ''
-  return password && secret ? { password, secret } : null
+  if (!password || !secret) return { error: json(503, { error: 'Password admin belum diatur' }) }
+  if (password.length < MIN_ADMIN_PASSWORD_LENGTH) {
+    return {
+      error: json(503, { error: `Password admin terlalu pendek (minimal ${MIN_ADMIN_PASSWORD_LENGTH} karakter)` }),
+    }
+  }
+  return { password, secret }
 }
 
 /** null = boleh lanjut; selain itu respons error yang langsung dikembalikan. */
 export function requireAdmin(request: Request): Response | null {
   const env = adminEnv()
-  if (!env) return json(503, { error: 'Password admin belum diatur' })
+  if ('error' in env) return env.error
   const token = readCookie(request.headers.get('cookie'), SESSION_COOKIE)
   if (!verifySessionToken(token, env.secret)) return json(401, { error: 'Sesi berakhir, silakan login lagi.' })
   return null
