@@ -1,10 +1,9 @@
-import { useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { site } from '../config/site'
 import { isPlaceholder } from '../lib/links'
 import {
   METHOD_LABELS,
-  buildOrderLogFormBody,
-  buildOrderLogRecord,
+  buildOrderPayload,
   buildWhatsAppMessage,
   buildWhatsAppUrl,
   calculateOrderTotal,
@@ -18,38 +17,19 @@ import {
   getItemName,
   getLineTotal,
   getOpenBatch,
-  getOptionFields,
   getPackagingNotes,
   getUnitPrice,
   hasErrors,
-  isItemDeliverable,
   validateOrder,
 } from '../lib/order'
-import type { FulfillmentMethod, ItemKind, LineErrors, OrderForm, OrderLine, OrderLogRecord } from '../types'
-import { IconAlert, IconChat, IconMinus, IconPlus, IconTrash, IconTruck } from './Icons'
+import type { FulfillmentMethod, OrderForm, OrderLine } from '../types'
+import { IconAlert, IconChat, IconPlus } from './Icons'
+import { FieldError } from './formParts'
+import { describedBy, labelClass } from './formUtils'
+import { LineEditor } from './LineEditor'
 import { SectionHeading } from './SectionHeading'
 
 /* ------------------------------------------------------------------ */
-
-function FieldError({ id, children }: { id: string; children?: ReactNode }) {
-  if (!children) return null
-  return (
-    <p id={id} className="mt-1.5 flex items-start gap-1.5 text-sm font-semibold text-danger">
-      <IconAlert className="mt-0.5 size-4 shrink-0" />
-      <span>{children}</span>
-    </p>
-  )
-}
-
-function describedBy(...ids: (string | false | undefined)[]) {
-  const value = ids.filter(Boolean).join(' ')
-  return value || undefined
-}
-
-const labelClass = 'mb-1.5 block font-semibold'
-
-/** Mode admin (buka situs dengan ?admin): input pesanan dari chat WA ke rekap, tanpa membuka WhatsApp. */
-const isAdminMode = () => new URLSearchParams(window.location.search).has('admin')
 
 /** Waktu saat ini — dipanggil dari event handler, bukan saat render. */
 const currentDate = () => new Date()
@@ -61,185 +41,20 @@ function openWhatsApp(url: string) {
   else window.location.href = url
 }
 
-/** Kirim rekap ke Google Form (tersimpan ke Google Sheets). Gagal kirim tidak menghalangi pesanan. */
-function sendOrderLog(record: OrderLogRecord) {
-  if (!site.orderLog.formUrl) return
-  // Google Form tidak mengizinkan CORS; no-cors tetap mengirim data walau balasannya tidak bisa dibaca.
-  fetch(site.orderLog.formUrl, {
+/**
+ * Simpan pesanan ke rekap (halaman admin) di latar belakang. Tidak ditunggu: WhatsApp tetap langsung terbuka,
+ * dan kalau gagal, pesanan tetap sampai lewat chat. keepalive supaya tetap terkirim walau halaman berpindah ke WA.
+ */
+function saveOrder(payload: ReturnType<typeof buildOrderPayload>) {
+  fetch('/api/orders', {
     method: 'POST',
-    mode: 'no-cors',
     keepalive: true,
-    body: buildOrderLogFormBody(record),
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(payload),
   }).catch(() => {})
 }
 
 /* ------------------------------------------------------------------ */
-
-interface LineEditorProps {
-  line: OrderLine
-  index: number
-  errors?: LineErrors
-  canRemove: boolean
-  onChange: (line: OrderLine) => void
-  onRemove: () => void
-}
-
-function LineEditor({ line, index, errors, canRemove, onChange, onRemove }: LineEditorProps) {
-  const itemId = `${line.key}-item`
-  const qtyId = `${line.key}-qty`
-  const fields = getOptionFields(line)
-  const selected = line.itemId ? `${line.kind}:${line.itemId}` : ''
-  const deliverable = isItemDeliverable(line)
-
-  const selectItem = (value: string) => {
-    const [kind, id = ''] = value.split(':') as [ItemKind, string?]
-    const next = { kind: kind || 'product', itemId: id }
-    // Pertahankan varian yang masih relevan (mis. saus karambol saat ganti ke Byte Pair).
-    const keep = Object.fromEntries(
-      getOptionFields(next).flatMap((f) => (line.options[f.key] ? [[f.key, line.options[f.key]]] : [])),
-    )
-    onChange({ ...line, ...next, options: keep })
-  }
-
-  const setQty = (qty: number) => onChange({ ...line, qty })
-
-  return (
-    <fieldset id={line.key} className="rounded-card border-2 border-chocolate bg-white p-4 sm:p-5">
-      <legend className="rounded-chip border-2 border-chocolate bg-caramel px-2 font-mono text-sm font-bold">
-        item #{index + 1}
-      </legend>
-
-      <div className="grid gap-4 sm:grid-cols-[1fr_auto]">
-        <div>
-          <label htmlFor={itemId} className={labelClass}>
-            {site.bundles.length > 0 ? 'Menu / bundle' : 'Menu'}
-          </label>
-          <select
-            id={itemId}
-            className="field"
-            value={selected}
-            onChange={(e) => selectItem(e.target.value)}
-            aria-invalid={errors?.item ? true : undefined}
-            aria-describedby={describedBy(errors?.item && `${itemId}-error`)}
-          >
-            <option value="">{site.bundles.length > 0 ? 'Pilih menu atau bundle…' : 'Pilih menu…'}</option>
-            <optgroup label="Menu">
-              {site.products.map((p) => (
-                <option key={p.id} value={`product:${p.id}`}>
-                  {p.name} — {formatRupiah(p.price)}
-                </option>
-              ))}
-            </optgroup>
-            {site.bundles.length > 0 ? (
-              <optgroup label="Bundle">
-                {site.bundles.map((b) => (
-                  <option key={b.id} value={`bundle:${b.id}`}>
-                    {b.name} (bundle) — {formatRupiah(b.price)}
-                  </option>
-                ))}
-              </optgroup>
-            ) : null}
-          </select>
-          <FieldError id={`${itemId}-error`}>{errors?.item}</FieldError>
-        </div>
-
-        <div>
-          <label htmlFor={qtyId} className={labelClass}>
-            Jumlah
-          </label>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border-2 border-chocolate bg-cream disabled:opacity-40"
-              onClick={() => setQty(Math.max(1, (Number.isFinite(line.qty) ? line.qty : 1) - 1))}
-              disabled={line.qty <= 1}
-              aria-label={`Kurangi jumlah item ${index + 1}`}
-            >
-              <IconMinus className="size-4" />
-            </button>
-            <input
-              id={qtyId}
-              type="number"
-              inputMode="numeric"
-              min={1}
-              step={1}
-              className="field w-16 text-center"
-              value={Number.isFinite(line.qty) ? line.qty : ''}
-              onChange={(e) => setQty(e.target.value === '' ? Number.NaN : Number(e.target.value))}
-              aria-invalid={errors?.qty ? true : undefined}
-              aria-describedby={describedBy(errors?.qty && `${qtyId}-error`)}
-            />
-            <button
-              type="button"
-              className="inline-flex size-11 shrink-0 items-center justify-center rounded-full border-2 border-chocolate bg-cream"
-              onClick={() => setQty((Number.isFinite(line.qty) ? line.qty : 0) + 1)}
-              aria-label={`Tambah jumlah item ${index + 1}`}
-            >
-              <IconPlus className="size-4" />
-            </button>
-          </div>
-          <FieldError id={`${qtyId}-error`}>{errors?.qty}</FieldError>
-        </div>
-      </div>
-
-      {fields.length > 0 ? (
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          {fields.map((field) => {
-            const id = `${line.key}-${field.key.replace('.', '-')}`
-            const error = errors?.options?.[field.key]
-            const label = line.kind === 'bundle' ? `${field.group.label} · ${field.product.name}` : field.group.label
-            return (
-              <div key={field.key}>
-                <label htmlFor={id} className={labelClass}>
-                  {label}
-                </label>
-                <select
-                  id={id}
-                  className="field"
-                  value={line.options[field.key] ?? ''}
-                  onChange={(e) => onChange({ ...line, options: { ...line.options, [field.key]: e.target.value } })}
-                  aria-invalid={error ? true : undefined}
-                  aria-describedby={describedBy(error && `${id}-error`)}
-                >
-                  <option value="">Pilih {field.group.label.toLowerCase()}…</option>
-                  {field.group.choices.map((choice) => (
-                    <option key={choice} value={choice}>
-                      {choice}
-                    </option>
-                  ))}
-                </select>
-                <FieldError id={`${id}-error`}>{error}</FieldError>
-              </div>
-            )
-          })}
-        </div>
-      ) : null}
-
-      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t-2 border-dashed border-chocolate/20 pt-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="font-mono text-sm">
-            subtotal <strong className="text-base">{formatRupiah(getLineTotal(line))}</strong>
-          </p>
-          {line.itemId && !deliverable ? (
-            <span className="badge border-coral-deep bg-coral-soft text-coral-deep">
-              <IconTruck className="size-3.5" /> ambil di booth
-            </span>
-          ) : null}
-        </div>
-        {canRemove ? (
-          <button
-            type="button"
-            onClick={onRemove}
-            className="inline-flex min-h-11 items-center gap-1.5 rounded-full px-3 text-sm font-semibold text-coral-deep hover:bg-coral-soft"
-          >
-            <IconTrash className="size-4" />
-            Hapus<span className="sr-only"> item {index + 1}</span>
-          </button>
-        ) : null}
-      </div>
-    </fieldset>
-  )
-}
 
 /* ------------------------------------------------------------------ */
 
@@ -263,8 +78,8 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
   const [sentUrl, setSentUrl] = useState<string | null>(null)
   // Pesanan terakhir yang sudah direkap, supaya klik kirim berulang tanpa perubahan tidak tercatat dobel.
   const [lastLogged, setLastLogged] = useState<{ key: string; id: string } | null>(null)
-  const [adminMode] = useState(isAdminMode)
-  const [savedId, setSavedId] = useState<string | null>(null)
+  // Honeypot anti-bot: input tersembunyi yang hanya diisi bot.
+  const [honeypot, setHoneypot] = useState('')
   const [adminIndex, setAdminIndex] = useState(0)
   const admins = site.contact.whatsappAdmins
   const admin = admins[adminIndex] ?? admins[0]
@@ -287,7 +102,6 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
     (value: T) => {
       setter(value)
       setSentUrl(null)
-      setSavedId(null)
     }
 
   const updateLine = (updated: OrderLine) => {
@@ -324,21 +138,8 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
     const isRepeat = lastLogged?.key === key
     const id = isRepeat ? lastLogged.id : createOrderId(current)
     if (!isRepeat) {
-      const source = adminMode ? 'Chat WA' : 'Website'
-      sendOrderLog(buildOrderLogRecord(form, { id, now: current, admin: admin.label, source }))
+      saveOrder(buildOrderPayload(form, id, admin.label, honeypot))
       setLastLogged({ key, id })
-    }
-
-    if (adminMode) {
-      // Kosongkan form supaya admin bisa langsung input pesanan berikutnya.
-      setSavedId(id)
-      setName('')
-      setPhone('')
-      setAddress('')
-      setNotes('')
-      setSubmitted(false)
-      onLinesChange([createLine()])
-      return
     }
 
     const url = buildWhatsAppUrl(admin.phone, buildWhatsAppMessage(form, current, id))
@@ -352,7 +153,7 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
         <SectionHeading
           id="pesan-title"
           eyebrow="05 · pre-order"
-          title={adminMode ? 'Input pesanan dari chat WA' : 'Pre-order sekarang'}
+          title="Pre-order sekarang"
           description={
             batch
               ? `PO ${batch.name} dibuka ${formatDateRange(batch.orderStart, batch.orderEnd)}. Semua pesanan ${methods.includes('pickup') ? 'diambil/diantar' : 'diantar'} ${formatDateLong(batch.fulfillmentDate)}.`
@@ -371,14 +172,21 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
             Semua isian wajib diisi kecuali catatan.
           </p>
 
-          <div className="space-y-6">
-            {adminMode ? (
-              <p className="rounded-field border-2 border-dashed border-chocolate bg-caramel-soft px-4 py-3 text-sm">
-                <strong>Mode admin.</strong> Isi data pembeli dari chat WhatsApp, lalu tekan “Catat ke rekap”. Form
-                otomatis kosong lagi untuk pesanan berikutnya.
-              </p>
-            ) : null}
+          {/* Honeypot anti-bot: tidak terlihat dan tidak bisa difokus; manusia membiarkannya kosong. */}
+          <div aria-hidden="true" className="absolute -left-[9999px] h-px w-px overflow-hidden">
+            <label htmlFor="po-website">Website</label>
+            <input
+              id="po-website"
+              name="website"
+              type="text"
+              tabIndex={-1}
+              autoComplete="off"
+              value={honeypot}
+              onChange={(e) => setHoneypot(e.target.value)}
+            />
+          </div>
 
+          <div className="space-y-6">
             {/* Data pemesan */}
             <div className="card grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
               <div>
@@ -629,39 +437,19 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
 
             <button
               type="submit"
-              disabled={!batch || (adminMode && !site.orderLog.formUrl)}
+              disabled={!batch}
               className="btn btn-primary mt-5 w-full text-base disabled:cursor-not-allowed disabled:opacity-50 sm:text-lg lg:text-base"
             >
               <IconChat className="size-5" />
-              {!batch
-                ? 'PO sedang tutup'
-                : adminMode
-                  ? 'Catat ke rekap'
-                  : admins.length > 1
-                    ? `Kirim ke WhatsApp ${admin.label}`
-                    : 'Kirim ke WhatsApp'}
+              {!batch ? 'PO sedang tutup' : admins.length > 1 ? `Kirim ke WhatsApp ${admin.label}` : 'Kirim ke WhatsApp'}
             </button>
-            {adminMode ? (
-              <p className="mt-3 text-xs text-cocoa">
-                {site.orderLog.formUrl
-                  ? 'Pesanan hanya dicatat ke rekap. WhatsApp tidak dibuka.'
-                  : 'Rekap belum aktif: isi orderLog di src/config/site.ts.'}
-              </p>
-            ) : (
-              <p className="mt-3 text-xs text-cocoa">
-                Pesanan diproses setelah dikonfirmasi admin. Bayar via {site.payment.methods.join(' / ')}.
-              </p>
-            )}
+            <p className="mt-3 text-xs text-cocoa">
+              Pesanan diproses setelah dikonfirmasi admin. Bayar via {site.payment.methods.join(' / ')}.
+            </p>
 
             {waMissing ? (
               <p className="mt-3 rounded-field border-2 border-dashed border-coral-deep px-3 py-2 text-xs text-coral-deep">
                 Nomor WhatsApp admin belum diisi di <code>src/config/site.ts</code> (<code>contact.whatsappAdmins</code>).
-              </p>
-            ) : null}
-
-            {adminMode && savedId ? (
-              <p role="status" className="mt-4 rounded-field bg-sky-soft px-3 py-2 text-sm text-ice-deep">
-                Pesanan <strong>{savedId}</strong> dikirim ke rekap. Kirim ID ini ke pembeli, lalu cek sheet.
               </p>
             ) : null}
 

@@ -2,8 +2,7 @@ import { afterAll, describe, expect, it } from 'vitest'
 import { site } from '../config/site'
 import type { Bundle, OrderForm, OrderLine, PoBatch, Product } from '../types'
 import {
-  buildOrderLogFormBody,
-  buildOrderLogRecord,
+  buildOrderPayload,
   buildWhatsAppMessage,
   buildWhatsAppUrl,
   calculateOrderTotal,
@@ -402,46 +401,19 @@ describe('rekap order', () => {
     expect(buildWhatsAppMessage(form, NOW)).not.toContain('ID Order')
   })
 
-  it('satu baris rekap berisi data pesanan lengkap', () => {
-    const record = buildOrderLogRecord(form, { id: 'IB-0928-K3F9', now: NOW, admin: 'Admin 1' })
-    expect(record).toEqual({
+  it('payload API: baris kosong dibuang, key tidak ikut, honeypot ikut', () => {
+    const form = validForm({ lines: [gabinLine(2), line({ kind: 'product', itemId: '' })], notes: 'x' })
+    expect(buildOrderPayload(form, 'IB-0928-K3F9', 'Admin 1', '')).toEqual({
       id: 'IB-0928-K3F9',
-      source: 'Website',
-      createdAt: '2026-09-28 10:00',
-      batch: TEST_BATCH.name,
-      deliveryDate: 'Sabtu, 3 Oktober 2026',
       name: 'Rara',
-      phone: '+62 812 3456 7890',
-      method: 'Antar',
-      address: 'Kos Melati No. 3',
-      items: [
-        '2x Es Krim Gabin — Rasa: Oreo Mint',
-        `1x ${TEST_BUNDLE.name} (bundle) — 1x Es Krim Gabin (Rasa: Strawberry); 1x ${TEST_DRINK.name}`,
-      ].join('\n'),
-      total: calculateOrderTotal(form.lines),
-      notes: 'Jangan pedas',
+      phone: '0812-3456-7890',
+      method: 'pickup',
+      address: '',
+      notes: 'x',
       admin: 'Admin 1',
+      website: '',
+      lines: [{ kind: 'product', itemId: 'sandwich', qty: 2, options: { 'sandwich.rasa': 'Oreo Mint' } }],
     })
-  })
-
-  it('pesanan dari mode admin ditandai Chat WA', () => {
-    const record = buildOrderLogRecord(form, { id: 'x', now: NOW, admin: 'Admin 1', source: 'Chat WA' })
-    expect(record.source).toBe('Chat WA')
-  })
-
-  it('dikirim ke Google Form hanya untuk data yang punya field', () => {
-    const record = buildOrderLogRecord(form, { id: 'IB-0928-K3F9', now: NOW, admin: 'Admin 1' })
-    const body = buildOrderLogFormBody(record, { id: 'entry.1', total: 'entry.2', items: 'entry.3' })
-    expect([...body.keys()]).toEqual(['entry.1', 'entry.2', 'entry.3'])
-    expect(body.get('entry.1')).toBe('IB-0928-K3F9')
-    expect(body.get('entry.2')).toBe(String(calculateOrderTotal(form.lines)))
-    expect(body.get('entry.3')).toBe(record.items)
-    expect(buildOrderLogFormBody(record, {}).toString()).toBe('')
-  })
-
-  it('lokasi dikosongkan kalau bukan antar', () => {
-    const record = buildOrderLogRecord(validForm({ address: 'sisa ketikan' }), { id: 'x', now: NOW, admin: 'A' })
-    expect(record.address).toBe('')
   })
 })
 

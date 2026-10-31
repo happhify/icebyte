@@ -41,13 +41,6 @@ const batches: PoBatch[] = [
   { name: 'Batch 1', orderStart: '2026-10-11', orderEnd: '2026-10-14', fulfillmentDate: '2026-10-18' },
 ]
 
-// Rekap order lewat Google Form yang tersambung ke Google Sheets (lihat README "Rekap order").
-// formUrl kosong = order tidak direkap, form PO tetap jalan seperti biasa.
-const orderLog: SiteConfig['orderLog'] = {
-  formUrl: '',
-  fields: {},
-}
-
 // Metode di form PO. Booth belum buka, jadi sementara hanya antar.
 // Kalau booth sudah buka, ubah jadi ['pickup', 'delivery'].
 const fulfillmentMethods: FulfillmentMethod[] = ['delivery']
@@ -182,7 +175,6 @@ export const site: SiteConfig = {
   batches,
   products,
   bundles,
-  orderLog,
   fulfillmentMethods,
   delivery,
   payment,

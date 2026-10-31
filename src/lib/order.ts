@@ -7,8 +7,7 @@ import type {
   OrderErrors,
   OrderForm,
   OrderLine,
-  OrderLogRecord,
-  OrderSource,
+  OrderInput,
   OrderStatus,
   ProductionUnit,
   PoBatch,
@@ -443,39 +442,26 @@ export function summarizeOrder(lines: OrderLine[]): string {
     .join('\n')
 }
 
-export function buildOrderLogRecord(
+/** Isi kiriman ke POST /api/orders. Baris kosong dibuang; `key` hanya dipakai di UI. */
+export function buildOrderPayload(
   form: OrderForm,
-  { id, now, admin, source = 'Website' }: { id: string; now: Date; admin: string; source?: OrderSource },
-): OrderLogRecord {
-  const batch = getOpenBatch(now)
-  const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  id: string,
+  admin: string,
+  honeypot: string,
+): OrderInput & { id: string; website: string } {
   return {
     id,
-    source,
-    createdAt: `${toISODate(now)} ${time}`,
-    batch: batch?.name ?? '',
-    deliveryDate: batch ? formatDateLong(batch.fulfillmentDate) : '',
-    name: form.name.trim(),
-    phone: form.phone.trim(),
-    method: form.method ? METHOD_LABELS[form.method] : '',
-    address: form.method === 'delivery' ? form.address.trim() : '',
-    items: summarizeOrder(form.lines),
-    total: calculateOrderTotal(form.lines),
-    notes: form.notes.trim(),
+    name: form.name,
+    phone: form.phone,
+    method: form.method as FulfillmentMethod,
+    address: form.address,
+    notes: form.notes,
     admin,
+    website: honeypot,
+    lines: form.lines
+      .filter((line) => line.itemId)
+      .map(({ kind, itemId, qty, options }) => ({ kind, itemId, qty, options })),
   }
-}
-
-/** Isi kiriman ke Google Form: hanya data yang punya field di `orderLog.fields`. */
-export function buildOrderLogFormBody(
-  record: OrderLogRecord,
-  fields: Partial<Record<keyof OrderLogRecord, string>> = site.orderLog.fields,
-): URLSearchParams {
-  const body = new URLSearchParams()
-  for (const [key, field] of Object.entries(fields) as [keyof OrderLogRecord, string | undefined][]) {
-    if (field) body.append(field, String(record[key]))
-  }
-  return body
 }
 
 /* ------------------------------------------------------------------ */
