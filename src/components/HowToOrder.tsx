@@ -5,7 +5,7 @@ import { SectionHeading } from './SectionHeading'
 const STEPS = [
   {
     title: 'Pilih menu',
-    body: 'Cek menu & bundle di atas, lalu pilih favoritmu: es krim gabin (Oreo Mint, Strawberry, Cokelat) atau roasted milk tea.',
+    body: 'Cek menu & bundle di atas, lalu pilih rasa es krim gabin favoritmu: Oreo Mint, Strawberry, atau Cokelat.',
     bg: 'bg-caramel/50',
   },
   {

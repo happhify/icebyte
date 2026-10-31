@@ -38,7 +38,21 @@ const bundle = (id: string) => {
   return found
 }
 
-// Config saat ini tidak punya bundle, jadi logika bundle dites dengan bundle contoh.
+// Produk kedua khusus test (config saat ini hanya punya Es Krim Gabin), untuk menguji
+// pesanan campuran dan aturan produk yang tidak bisa diantar.
+const TEST_DRINK: Product = {
+  id: 'drink-test',
+  name: 'Minuman Test',
+  codename: 'TestByte',
+  description: 'Produk contoh khusus test.',
+  texture: 'drink',
+  price: 13000,
+  deliverable: true,
+  optionGroups: [],
+  imageLabel: 'Minuman Test',
+}
+
+// Bundle contoh, supaya test tidak bergantung pada isi bundle di config.
 const TEST_BUNDLE: Bundle = {
   id: 'combo-test',
   name: 'Combo Test',
@@ -46,7 +60,7 @@ const TEST_BUNDLE: Bundle = {
   price: 18000,
   items: [
     { productId: 'sandwich', qty: 1 },
-    { productId: 'milk-tea', qty: 1 },
+    { productId: TEST_DRINK.id, qty: 1 },
   ],
 }
 const TEST_TRIO: Bundle = {
@@ -70,6 +84,7 @@ const CONFIG_BATCHES = [...site.batches]
 const CONFIG_METHODS = [...site.fulfillmentMethods]
 
 // Dipasang saat file dimuat (bukan di beforeAll) karena sebagian pesan dibuat saat describe dikumpulkan.
+site.products.push(TEST_DRINK)
 site.bundles.push(TEST_BUNDLE, TEST_TRIO)
 site.batches.splice(0, site.batches.length, TEST_BATCH)
 // Test aturan ambil vs antar butuh kedua metode aktif, apa pun isi config saat ini.
@@ -79,6 +94,7 @@ afterAll(() => {
   site.batches.splice(0, site.batches.length, ...CONFIG_BATCHES)
   site.bundles.splice(site.bundles.indexOf(TEST_BUNDLE), 1)
   site.bundles.splice(site.bundles.indexOf(TEST_TRIO), 1)
+  site.products.splice(site.products.indexOf(TEST_DRINK), 1)
 })
 
 /** Ubah sementara data sebuah produk di config selama satu test, lalu kembalikan seperti semula. */
@@ -100,7 +116,7 @@ function line(partial: Partial<OrderLine> & Pick<OrderLine, 'kind' | 'itemId'>):
 
 const gabinLine = (qty = 1): OrderLine =>
   line({ kind: 'product', itemId: 'sandwich', qty, options: { 'sandwich.rasa': 'Oreo Mint' } })
-const milkTeaLine = (qty = 1): OrderLine => line({ kind: 'product', itemId: 'milk-tea', qty })
+const drinkLine = (qty = 1): OrderLine => line({ kind: 'product', itemId: TEST_DRINK.id, qty })
 const comboLine = (qty = 1): OrderLine =>
   line({ kind: 'bundle', itemId: TEST_BUNDLE.id, qty, options: { 'sandwich.rasa': 'Strawberry' } })
 
@@ -138,9 +154,9 @@ describe('hitung total', () => {
   })
 
   it('menjumlahkan campuran produk dan bundle', () => {
-    const lines = [gabinLine(2), milkTeaLine(1), comboLine(1)]
+    const lines = [gabinLine(2), drinkLine(1), comboLine(1)]
     expect(calculateOrderTotal(lines)).toBe(
-      product('sandwich').price * 2 + product('milk-tea').price + TEST_BUNDLE.price,
+      product('sandwich').price * 2 + product(TEST_DRINK.id).price + TEST_BUNDLE.price,
     )
   })
 
@@ -150,7 +166,7 @@ describe('hitung total', () => {
 
   it('harga normal & hemat bundle dihitung dari harga produk', () => {
     const combo = bundle(TEST_BUNDLE.id)
-    const normal = product('sandwich').price + product('milk-tea').price
+    const normal = product('sandwich').price + product(TEST_DRINK.id).price
     expect(getBundleNormalPrice(combo)).toBe(normal)
     expect(getBundleSavings(combo)).toBe(normal - combo.price)
   })
@@ -191,29 +207,29 @@ describe('batch PO', () => {
 })
 
 describe('aturan pengantaran', () => {
-  // Saat ini semua menu bisa diantar; aturan dites dengan menandai Roasted Milk Tea sementara sebagai non-deliverable.
+  // Saat ini semua menu bisa diantar; aturan dites dengan menandai produk contoh sementara sebagai non-deliverable.
   const pickupOnly: Partial<Product> = { deliverable: false, availability: 'Booth/event tertentu' }
 
   it('produk non-deliverable + antar ditolak dengan pesan jelas', () => {
-    withProduct('milk-tea', pickupOnly, () => {
-      const errors = validateOrder(validForm({ lines: [milkTeaLine()], method: 'delivery', address: 'Kos Melati' }), NOW)
-      expect(errors.method).toContain(product('milk-tea').name)
+    withProduct(TEST_DRINK.id, pickupOnly, () => {
+      const errors = validateOrder(validForm({ lines: [drinkLine()], method: 'delivery', address: 'Kos Melati' }), NOW)
+      expect(errors.method).toContain(product(TEST_DRINK.id).name)
       expect(errors.method).toContain('tidak bisa diantar')
       expect(errors.method).toContain('booth/event tertentu')
     })
   })
 
   it('bundle yang berisi produk non-deliverable juga ditolak', () => {
-    withProduct('milk-tea', pickupOnly, () => {
+    withProduct(TEST_DRINK.id, pickupOnly, () => {
       const conflict = getDeliveryConflict([comboLine()])
       expect(conflict).toContain(TEST_BUNDLE.name)
-      expect(conflict).toContain(product('milk-tea').name)
+      expect(conflict).toContain(product(TEST_DRINK.id).name)
     })
   })
 
   it('produk non-deliverable boleh diambil di booth', () => {
-    withProduct('milk-tea', pickupOnly, () => {
-      const errors = validateOrder(validForm({ lines: [milkTeaLine(), comboLine()], method: 'pickup' }), NOW)
+    withProduct(TEST_DRINK.id, pickupOnly, () => {
+      const errors = validateOrder(validForm({ lines: [drinkLine(), comboLine()], method: 'pickup' }), NOW)
       expect(hasErrors(errors)).toBe(false)
     })
   })
@@ -223,8 +239,8 @@ describe('aturan pengantaran', () => {
     try {
       expect(validateOrder(validForm({ method: 'pickup' }), NOW).method).toContain('belum tersedia')
       expect(hasErrors(validateOrder(validForm({ method: 'delivery', address: 'Gedung B' }), NOW))).toBe(false)
-      withProduct('milk-tea', pickupOnly, () => {
-        expect(getDeliveryConflict([milkTeaLine()])).not.toContain('Ambil di booth')
+      withProduct(TEST_DRINK.id, pickupOnly, () => {
+        expect(getDeliveryConflict([drinkLine()])).not.toContain('Ambil di booth')
       })
     } finally {
       site.fulfillmentMethods.splice(0, site.fulfillmentMethods.length, 'pickup', 'delivery')
@@ -232,8 +248,8 @@ describe('aturan pengantaran', () => {
   })
 
   it('produk deliverable boleh diantar asal lokasi diisi', () => {
-    withProduct('milk-tea', { deliverable: true }, () => {
-      const lines = [gabinLine(), milkTeaLine(), comboLine()]
+    withProduct(TEST_DRINK.id, { deliverable: true }, () => {
+      const lines = [gabinLine(), drinkLine(), comboLine()]
       expect(getDeliveryConflict(lines)).toBeUndefined()
       expect(validateOrder(validForm({ lines, method: 'delivery', address: '' }), NOW).address).toBeDefined()
       expect(hasErrors(validateOrder(validForm({ lines, method: 'delivery', address: 'Gedung B' }), NOW))).toBe(false)
@@ -307,7 +323,7 @@ describe('catatan kemasan', () => {
     withProduct('sandwich', { packagingNote: 'Es krim dikemas dengan ice gel.' }, () => {
       expect(getPackagingNotes([gabinLine()])).toEqual(['Es krim dikemas dengan ice gel.'])
       expect(getPackagingNotes([comboLine(), gabinLine()])).toEqual(['Es krim dikemas dengan ice gel.'])
-      expect(getPackagingNotes([milkTeaLine()])).toEqual([])
+      expect(getPackagingNotes([drinkLine()])).toEqual([])
       expect(buildWhatsAppMessage(validForm(), NOW)).toContain('_Info: Es krim dikemas dengan ice gel._')
     })
   })
@@ -328,7 +344,7 @@ describe('pesan WhatsApp', () => {
     expect(message).toContain(`2 x ${formatRupiah(product('sandwich').price)} = ${formatRupiah(product('sandwich').price * 2)}`)
     expect(message).toContain('Rasa: Oreo Mint')
     expect(message).toContain('1x Es Krim Gabin (Rasa: Strawberry)')
-    expect(message).toContain('1x Roasted Milk Tea')
+    expect(message).toContain(`1x ${TEST_DRINK.name}`)
     expect(message).toContain(`2. ${TEST_BUNDLE.name} (bundle)`)
     expect(message).toContain(`*Total:* ${formatRupiah(calculateOrderTotal(form.lines))}`)
     expect(message).toContain('*Batch PO:* Batch Test')
@@ -399,7 +415,7 @@ describe('rekap order', () => {
       address: 'Kos Melati No. 3',
       items: [
         '2x Es Krim Gabin — Rasa: Oreo Mint',
-        `1x ${TEST_BUNDLE.name} (bundle) — 1x Es Krim Gabin (Rasa: Strawberry); 1x Roasted Milk Tea`,
+        `1x ${TEST_BUNDLE.name} (bundle) — 1x Es Krim Gabin (Rasa: Strawberry); 1x ${TEST_DRINK.name}`,
       ].join('\n'),
       total: calculateOrderTotal(form.lines),
       notes: 'Jangan pedas',

@@ -27,31 +27,40 @@ export function Menu({ onAdd }: MenuProps) {
             id="menu-title"
             eyebrow="02 · menu"
             title="Pick your Byte"
-            description="Es krim gabin tiga rasa, ditemani roasted milk tea. Mau yang dingin-renyah atau yang bisa diseruput?"
+            description="Es krim gabin tiga rasa: Oreo Mint, Strawberry, dan Cokelat. Dingin, renyah, dan pas buat jajan di sela kelas."
           />
         </Reveal>
 
-        <div role="group" aria-label="Filter kategori" className="mb-8 flex flex-wrap justify-center gap-2">
-          {filters.map((f) => (
-            <button
-              key={f.id}
-              type="button"
-              aria-pressed={filter === f.id}
-              onClick={() => setFilter(f.id)}
-              className={`min-h-11 rounded-full border-2 border-chocolate px-5 font-mono text-sm font-bold transition-colors ${
-                filter === f.id ? 'bg-chocolate text-vanilla' : 'bg-white hover:bg-sky-soft'
-              }`}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
+        {/* Filter hanya berguna kalau ada lebih dari satu kategori. */}
+        {site.textures.length > 1 ? (
+          <div role="group" aria-label="Filter kategori" className="mb-8 flex flex-wrap justify-center gap-2">
+            {filters.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                aria-pressed={filter === f.id}
+                onClick={() => setFilter(f.id)}
+                className={`min-h-11 rounded-full border-2 border-chocolate px-5 font-mono text-sm font-bold transition-colors ${
+                  filter === f.id ? 'bg-chocolate text-vanilla' : 'bg-white hover:bg-sky-soft'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        ) : null}
         <p className="sr-only" aria-live="polite">
           Menampilkan {visible.length} menu
         </p>
 
         <ul
-          className={`grid gap-6 sm:grid-cols-2 ${site.products.length > 2 ? 'lg:grid-cols-3' : 'mx-auto max-w-4xl'}`}
+          className={`grid gap-6 ${
+            site.products.length === 1
+              ? 'mx-auto max-w-md'
+              : site.products.length > 2
+                ? 'sm:grid-cols-2 lg:grid-cols-3'
+                : 'mx-auto max-w-4xl sm:grid-cols-2'
+          }`}
         >
           {visible.map((product) => (
             <li key={product.id} className="card flex flex-col overflow-hidden">

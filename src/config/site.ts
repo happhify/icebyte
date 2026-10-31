@@ -78,34 +78,10 @@ const products: Product[] = [
       { label: 'Cokelat', image: 'images/gabin-cokelat.jpg' },
     ],
   },
-  {
-    id: 'milk-tea',
-    name: 'Roasted Milk Tea',
-    // DRAFT — codename & deskripsi silakan disesuaikan tim.
-    codename: 'SipByte',
-    description:
-      'Teh susu dengan aroma teh panggang yang khas, manis dan creamy. Pas jadi teman es krim gabin di sela kelas.',
-    texture: 'drink',
-    price: 13000,
-    deliverable: true,
-    optionGroups: [],
-    image: 'images/milk-tea.jpg',
-    imageLabel: 'Roasted Milk Tea dalam botol',
-  },
 ]
 
 // Kosong = section Bundle, menu navbar Bundle, dan pilihan bundle di form disembunyikan.
 const bundles: Bundle[] = [
-  {
-    id: 'full-stack',
-    name: 'Full Stack',
-    description: 'Satu Es Krim Gabin rasa pilihanmu plus satu Roasted Milk Tea. Paket lengkap: yang dingin-renyah dan yang bisa diseruput.',
-    price: 22000,
-    items: [
-      { productId: 'sandwich', qty: 1 },
-      { productId: 'milk-tea', qty: 1 },
-    ],
-  },
   {
     id: 'byte-trio',
     name: 'Byte Trio',
@@ -116,13 +92,6 @@ const bundles: Bundle[] = [
       { productId: 'sandwich', qty: 1, options: { rasa: 'Strawberry' } },
       { productId: 'sandwich', qty: 1, options: { rasa: 'Cokelat' } },
     ],
-  },
-  {
-    id: 'byte-pair',
-    name: 'Byte Pair',
-    description: 'Dua Roasted Milk Tea buat kamu dan bestie. Berdua lebih hemat.',
-    price: 25000,
-    items: [{ productId: 'milk-tea', qty: 2 }],
   },
 ]
 
@@ -190,9 +159,9 @@ export const site: SiteConfig = {
     name: 'IceByte',
     version: 'v1.0',
     slogan: 'Take a Byte!',
-    tagline: 'Es Krim Gabin & Roasted Milk Tea — pick your Byte.',
-    valueProp: 'Es krim gabin dan roasted milk tea dalam satu gerai kampus, dengan harga mahasiswa.',
-    heroDescription: `Es krim gabin tiga rasa dan roasted milk tea buatan mahasiswa ${campus.name}. Harganya ramah di kantong — pilih favoritmu dan pesan langsung lewat WhatsApp.`,
+    tagline: 'Es Krim Gabin tiga rasa — pick your Byte.',
+    valueProp: 'Es krim gabin tiga rasa dari gerai kampus, dengan harga mahasiswa.',
+    heroDescription: `Es krim gabin tiga rasa buatan mahasiswa ${campus.name}. Harganya ramah di kantong — pilih favoritmu dan pesan langsung lewat WhatsApp.`,
   },
   campus,
   contact,
@@ -203,13 +172,12 @@ export const site: SiteConfig = {
     // DRAFT — silakan disesuaikan dengan cerita asli tim.
     inspiration: [
       `Kami bersepuluh adalah mahasiswa S1 Teknik Komputer ${campus.name}. Hari-hari kami diisi coding, praktikum, dan debugging sampai larut — dan di sela semua itu, jajanan manis selalu jadi penyelamat.`,
-      'Dari obrolan di sela tugas, muncul ide: kenapa nggak bikin jajanan sendiri yang enak, beda, dan tetap ramah di kantong mahasiswa? Kami mulai dari es krim gabin dengan tiga varian rasa — Oreo Mint, Strawberry, dan Cokelat — ditemani roasted milk tea buat yang mau seruput sesuatu.',
+      'Dari obrolan di sela tugas, muncul ide: kenapa nggak bikin jajanan sendiri yang enak, beda, dan tetap ramah di kantong mahasiswa? Kami mulai dari es krim gabin dengan tiga varian rasa — Oreo Mint, Strawberry, dan Cokelat.',
       'IceByte kami jalankan seperti satu tim proyek: ada yang pegang produksi, keuangan, promosi, sampai website ini. Cara kerjanya pun ala anak Teknik Komputer — coba, evaluasi, perbaiki, lalu rilis versi yang lebih baik. Ini baru v1.0, dan kami akan terus update.',
     ],
   },
   textures: [
     { id: 'sandwich', label: 'Es Krim' },
-    { id: 'drink', label: 'Minuman' },
   ],
   batches,
   products,
