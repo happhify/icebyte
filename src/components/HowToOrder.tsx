@@ -5,17 +5,17 @@ import { SectionHeading } from './SectionHeading'
 const STEPS = [
   {
     title: 'Pilih menu',
-    body: 'Cek menu & bundle di atas, lalu pilih rasa es krim gabin favoritmu: Oreo Mint, Strawberry, atau Cokelat.',
+    body: 'Cek menu & bundle di atas, lalu pilih rasa es krim gabin favoritmu: Oreo Mint, Strawberry, Cokelat, Matcha, atau Mangga.',
     bg: 'bg-caramel/50',
   },
   {
     title: 'Isi form PO',
-    body: 'Isi form pre-order selama masa PO batch dibuka, lalu tekan “Kirim ke WhatsApp”.',
+    body: 'Isi form pre-order selama masa PO batch dibuka, lalu tekan “Lanjut ke Pembayaran”.',
     bg: 'bg-sky',
   },
   {
-    title: 'Konfirmasi & bayar',
-    body: `Admin mengonfirmasi pesananmu di WhatsApp. Bayar pakai ${site.payment.methods.join(' atau ')}, ${site.fulfillmentMethods.includes('pickup') ? 'lalu tinggal ambil!' : 'lalu tunggu pesananmu diantar!'}`,
+    title: 'Bayar & kirim bukti',
+    body: `Bayar pakai ${site.payment.methods.join(' atau ')} sesuai total, lalu kirim screenshot buktinya ke WhatsApp admin. Setelah dicek admin, ${site.fulfillmentMethods.includes('pickup') ? 'tinggal ambil pesananmu!' : 'tunggu pesananmu diantar!'}`,
     bg: 'bg-coral-light',
   },
 ]

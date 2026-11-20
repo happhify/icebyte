@@ -73,6 +73,17 @@ const TEST_TRIO: Bundle = {
     { productId: 'sandwich', qty: 1, options: { rasa: 'Strawberry' } },
   ],
 }
+const TEST_PICK3: Bundle = {
+  id: 'pick3-test',
+  name: 'Pick3 Test',
+  description: 'Bundle contoh: tiga produk sama, rasa dipilih pembeli satu per satu.',
+  price: 27000,
+  items: [
+    { productId: 'sandwich', qty: 1 },
+    { productId: 'sandwich', qty: 1 },
+    { productId: 'sandwich', qty: 1 },
+  ],
+}
 // Batch contoh yang mencakup NOW, supaya test tidak bergantung pada tanggal batch asli.
 const TEST_BATCH: PoBatch = {
   name: 'Batch Test',
@@ -85,7 +96,7 @@ const CONFIG_METHODS = [...site.fulfillmentMethods]
 
 // Dipasang saat file dimuat (bukan di beforeAll) karena sebagian pesan dibuat saat describe dikumpulkan.
 site.products.push(TEST_DRINK)
-site.bundles.push(TEST_BUNDLE, TEST_TRIO)
+site.bundles.push(TEST_BUNDLE, TEST_TRIO, TEST_PICK3)
 site.batches.splice(0, site.batches.length, TEST_BATCH)
 // Test aturan ambil vs antar butuh kedua metode aktif, apa pun isi config saat ini.
 site.fulfillmentMethods.splice(0, site.fulfillmentMethods.length, 'pickup', 'delivery')
@@ -94,6 +105,7 @@ afterAll(() => {
   site.batches.splice(0, site.batches.length, ...CONFIG_BATCHES)
   site.bundles.splice(site.bundles.indexOf(TEST_BUNDLE), 1)
   site.bundles.splice(site.bundles.indexOf(TEST_TRIO), 1)
+  site.bundles.splice(site.bundles.indexOf(TEST_PICK3), 1)
   site.products.splice(site.products.indexOf(TEST_DRINK), 1)
 })
 
@@ -301,6 +313,32 @@ describe('validasi form', () => {
     expect(message).toContain('- 1x Es Krim Gabin (Rasa: Strawberry)')
   })
 
+  it('produk sama di bundle tanpa varian tetap: rasa dipilih satu per satu', () => {
+    const fields = getOptionFields({ kind: 'bundle', itemId: TEST_PICK3.id })
+    expect(fields.map((f) => f.key)).toEqual(['sandwich-1.rasa', 'sandwich-2.rasa', 'sandwich-3.rasa'])
+    expect(fields.map((f) => f.label)).toEqual(['Es Krim Gabin 1', 'Es Krim Gabin 2', 'Es Krim Gabin 3'])
+
+    const partial = line({ kind: 'bundle', itemId: TEST_PICK3.id, options: { 'sandwich-1.rasa': 'Oreo Mint' } })
+    expect(Object.keys(validateOrder(validForm({ lines: [partial] }), NOW).lines?.[partial.key]?.options ?? {})).toEqual(
+      ['sandwich-2.rasa', 'sandwich-3.rasa'],
+    )
+
+    const pick = line({
+      kind: 'bundle',
+      itemId: TEST_PICK3.id,
+      options: { 'sandwich-1.rasa': 'Matcha', 'sandwich-2.rasa': 'Mangga', 'sandwich-3.rasa': 'Matcha' },
+    })
+    expect(validateOrder(validForm({ lines: [pick] }), NOW)).toEqual({})
+    const message = buildWhatsAppMessage(validForm({ lines: [pick] }), NOW)
+    expect(message).toContain('- 1x Es Krim Gabin (Rasa: Matcha)')
+    expect(message).toContain('- 1x Es Krim Gabin (Rasa: Mangga)')
+    expect(getProductionUnits([pick])).toEqual([
+      { product: 'Es Krim Gabin', variant: 'Matcha', qty: 1 },
+      { product: 'Es Krim Gabin', variant: 'Mangga', qty: 1 },
+      { product: 'Es Krim Gabin', variant: 'Matcha', qty: 1 },
+    ])
+  })
+
   it('nomor WhatsApp dinormalisasi & divalidasi', () => {
     expect(normalizePhone('0812-3456-7890')).toBe('6281234567890')
     expect(normalizePhone('+62 812 3456 7890')).toBe('6281234567890')
@@ -351,6 +389,12 @@ describe('pesan WhatsApp', () => {
     expect(message).toContain('*Tanggal ambil:* Sabtu, 3 Oktober 2026')
     expect(message).toContain('*Metode:* Ambil di booth')
     expect(message).toContain('*Catatan:* Saus #1 + ekstra 50%? Makasih')
+  })
+
+  it('mencatat pembayaran QRIS dan minta admin cek bukti bayar', () => {
+    expect(message).toContain('*Pembayaran:* QRIS (sudah dibayar)')
+    expect(message).toContain('Bukti pembayaran QRIS saya lampirkan di chat ini. Mohon dicek & dikonfirmasi ya. Terima kasih!')
+    expect(message).not.toContain('Mohon konfirmasi & info pembayarannya')
   })
 
   it('menyertakan lokasi antar kalau metode antar', () => {

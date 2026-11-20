@@ -24,10 +24,11 @@ import {
   validateOrder,
 } from '../lib/order'
 import type { FulfillmentMethod, OrderForm, OrderLine } from '../types'
-import { IconAlert, IconChat, IconPlus } from './Icons'
+import { IconAlert, IconPlus, IconQris } from './Icons'
 import { FieldError } from './formParts'
 import { describedBy, labelClass } from './formUtils'
 import { LineEditor } from './LineEditor'
+import { PaymentPanel } from './PaymentPanel'
 import { SectionHeading } from './SectionHeading'
 
 /* ------------------------------------------------------------------ */
@@ -77,6 +78,9 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
   const [notes, setNotes] = useState('')
   const [submitted, setSubmitted] = useState(false)
   const [sentUrl, setSentUrl] = useState<string | null>(null)
+  // Langkah 1 = isi form, langkah 2 = bayar QRIS lalu kirim bukti ke WA.
+  const [step, setStep] = useState<'form' | 'pay'>('form')
+  const [pendingId, setPendingId] = useState('')
   // Pesanan terakhir yang sudah direkap, supaya klik kirim berulang tanpa perubahan tidak tercatat dobel.
   const [lastLogged, setLastLogged] = useState<{ key: string; id: string } | null>(null)
   // Honeypot anti-bot: input tersembunyi yang hanya diisi bot.
@@ -97,47 +101,75 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
   const packagingNotes = getPackagingNotes(lines)
   const waMissing = admins.length === 0 || admins.some((a) => isPlaceholder(a.phone))
 
-  // Setiap perubahan membatalkan link WA yang sudah dibuat sebelumnya.
+  // Setiap perubahan isi pesanan membatalkan link WA lama dan kembali ke langkah 1 (total di QRIS bisa berubah).
+  const resetSent = () => {
+    setSentUrl(null)
+    setStep('form')
+  }
+
   const edit =
     <T,>(setter: (value: T) => void) =>
     (value: T) => {
       setter(value)
-      setSentUrl(null)
+      resetSent()
     }
 
   const updateLine = (updated: OrderLine) => {
     onLinesChange(lines.map((l) => (l.key === updated.key ? updated : l)))
-    setSentUrl(null)
+    resetSent()
   }
 
   const removeLine = (key: string) => {
     onLinesChange(lines.filter((l) => l.key !== key))
-    setSentUrl(null)
+    resetSent()
   }
 
   const addLine = () => {
     const line = createLine()
     onLinesChange([...lines, line])
+    resetSent()
     requestAnimationFrame(() => document.getElementById(`${line.key}-item`)?.focus())
   }
 
+  // Ganti admin tidak mengubah isi pesanan, jadi tetap di langkah pembayaran.
+  const selectAdmin = (index: number) => {
+    setAdminIndex(index)
+    setSentUrl(null)
+  }
+
+  /** Validasi ulang; kalau ada error, kembali ke langkah 1 dan fokus ke isian pertama yang salah. */
+  const checkForm = (current: Date): boolean => {
+    setNow(current)
+    setSubmitted(true)
+    if (!hasErrors(validateOrder(form, current))) return true
+    resetSent()
+    requestAnimationFrame(() => {
+      formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus()
+    })
+    return false
+  }
+
+  const orderKey = (current: Date) =>
+    JSON.stringify({ form, admin: admin.phone, batch: getOpenBatch(current)?.name })
+
+  // Langkah 1 → 2: tampilkan QRIS. Belum ada yang disimpan dan WA belum dibuka.
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault()
     const current = currentDate()
-    setNow(current)
-    setSubmitted(true)
+    if (!checkForm(current)) return
+    setPendingId(lastLogged?.key === orderKey(current) ? lastLogged.id : createOrderId(current))
+    setStep('pay')
+    requestAnimationFrame(() => document.getElementById('po-pay-title')?.scrollIntoView({ block: 'start' }))
+  }
 
-    if (hasErrors(validateOrder(form, current))) {
-      setSentUrl(null)
-      requestAnimationFrame(() => {
-        formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus()
-      })
-      return
-    }
+  // Langkah 2: pembeli sudah bayar → simpan ke rekap lalu buka WA untuk kirim bukti.
+  const sendOrder = () => {
+    const current = currentDate()
+    if (!checkForm(current)) return
 
-    const key = JSON.stringify({ form, admin: admin.phone, batch: getOpenBatch(current)?.name })
+    const key = orderKey(current)
     const isRepeat = lastLogged?.key === key
-    const id = isRepeat ? lastLogged.id : createOrderId(current)
+    const id = isRepeat ? lastLogged.id : pendingId || createOrderId(current)
     if (!isRepeat) {
       saveOrder(buildOrderPayload(form, id, admin.label, honeypot))
       setLastLogged({ key, id })
@@ -426,7 +458,7 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
                         name="admin"
                         value={index}
                         checked={adminIndex === index}
-                        onChange={() => edit(setAdminIndex)(index)}
+                        onChange={() => selectAdmin(index)}
                         className="size-5 accent-ice-deep"
                       />
                       <span className="flex flex-1 flex-wrap items-baseline justify-between gap-x-3">
@@ -439,17 +471,30 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
               </fieldset>
             ) : null}
 
-            <button
-              type="submit"
-              disabled={!batch}
-              className="btn btn-primary mt-5 w-full text-base disabled:cursor-not-allowed disabled:opacity-50 sm:text-lg lg:text-base"
-            >
-              <IconChat className="size-5" />
-              {!batch ? 'PO sedang tutup' : admins.length > 1 ? `Kirim ke WhatsApp ${admin.label}` : 'Kirim ke WhatsApp'}
-            </button>
-            <p className="mt-3 text-xs text-cocoa">
-              Pesanan diproses setelah dikonfirmasi admin. Bayar via {site.payment.methods.join(' / ')}.
-            </p>
+            {step === 'pay' && batch ? (
+              <PaymentPanel
+                total={total}
+                orderId={pendingId}
+                adminLabel={admin.label}
+                onSend={sendOrder}
+                onBack={resetSent}
+              />
+            ) : (
+              <>
+                <button
+                  type="submit"
+                  disabled={!batch}
+                  className="btn btn-primary mt-5 w-full text-base disabled:cursor-not-allowed disabled:opacity-50 sm:text-lg lg:text-base"
+                >
+                  <IconQris className="size-5" />
+                  {!batch ? 'PO sedang tutup' : 'Lanjut ke Pembayaran'}
+                </button>
+                <p className="mt-3 text-xs text-cocoa">
+                  Bayar dulu lewat {site.payment.methods.join(' / ')} di langkah berikutnya, lalu kirim bukti bayar ke
+                  WhatsApp admin. Pesanan diproses setelah bukti bayar dicek.
+                </p>
+              </>
+            )}
 
             {waMissing ? (
               <p className="mt-3 rounded-field border-2 border-dashed border-coral-deep px-3 py-2 text-xs text-coral-deep">
@@ -459,7 +504,8 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
 
             {sentUrl ? (
               <p role="status" className="mt-4 rounded-field bg-sky-soft px-3 py-2 text-sm text-ice-deep">
-                WhatsApp dibuka di tab baru. Belum terbuka?{' '}
+                WhatsApp dibuka di tab baru. <strong>Jangan lupa lampirkan screenshot bukti bayar</strong> di chat. Belum
+                terbuka?{' '}
                 <a href={sentUrl} target="_blank" rel="noopener noreferrer" className="font-bold underline">
                   Buka WhatsApp
                 </a>

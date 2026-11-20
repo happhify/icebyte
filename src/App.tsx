@@ -19,11 +19,15 @@ export default function App() {
   const [notice, setNotice] = useState('')
 
   // Tombol "Tambah ke PO" di kartu menu/bundle: isi baris kosong atau tambah baris baru.
-  const addItem = (kind: ItemKind, itemId: string) => {
+  // `options` terisi kalau tombolnya dari kartu per rasa, mis. { 'sandwich.rasa': 'Matcha' }.
+  const addItem = (kind: ItemKind, itemId: string, options: Record<string, string> = {}) => {
     const empty = lines.find((l) => !l.itemId)
-    const target: OrderLine = empty ? { ...empty, kind, itemId, options: {} } : createLine(kind, itemId)
+    const target: OrderLine = empty
+      ? { ...empty, kind, itemId, options }
+      : { ...createLine(kind, itemId), options }
     setLines(empty ? lines.map((l) => (l.key === empty.key ? target : l)) : [...lines, target])
-    setNotice(`${getItemName(target)} ditambahkan ke form pre-order.`)
+    const variant = Object.values(options).join(' ')
+    setNotice(`${getItemName(target)}${variant ? ` ${variant}` : ''} ditambahkan ke form pre-order.`)
 
     requestAnimationFrame(() => {
       document.getElementById(target.key)?.scrollIntoView({ block: 'center' })

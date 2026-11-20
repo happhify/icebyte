@@ -119,3 +119,22 @@ export const IconTruck = (p: IconProps) => (
     <circle cx="17" cy="18" r="2" />
   </Svg>
 )
+
+export const IconDownload = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 4v11M7 10l5 5 5-5M5 20h14" />
+  </Svg>
+)
+
+export const IconCopy = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="9" y="9" width="11" height="11" rx="2" />
+    <path d="M5 15V6a2 2 0 0 1 2-2h9" />
+  </Svg>
+)
+
+export const IconQris = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h2v2h-2zM18 14h2M14 18v2M18 18h2v2" />
+  </Svg>
+)

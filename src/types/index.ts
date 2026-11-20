@@ -34,12 +34,19 @@ export interface Product {
   imageLabel: string
   /** Foto tambahan (mis. per rasa), tampil sebagai tombol di bawah foto utama. */
   gallery?: GalleryImage[]
+  /**
+   * Id grup opsi (mis. "rasa"): di section Menu, produk ini tampil sebagai satu kartu per pilihan.
+   * Foto tiap kartu diambil dari `gallery` yang label-nya sama dengan pilihan itu.
+   */
+  cardPerChoice?: string
+  /** Deskripsi khusus tiap kartu pilihan (key = nama pilihan). Kosong = pakai `description`. */
+  choiceDescriptions?: Record<string, string>
 }
 
 export interface GalleryImage {
   label: string
-  /** Path foto, sama seperti `image`. */
-  image: string
+  /** Path foto, sama seperti `image`. Kosong = placeholder "foto menyusul". */
+  image?: string
 }
 
 export interface BundleItem {
@@ -62,6 +69,14 @@ export interface Testimonial {
   quote: string
   /** Mis. "Mahasiswa Teknik Sipil" atau "via Instagram". */
   source?: string
+}
+
+/** Foto asli pelanggan untuk section testimoni. */
+export interface TestimonialPhoto {
+  /** Thumbnail untuk grid (path seperti `image`). */
+  image: string
+  /** Versi besar saat foto dibuka. Kosong = pakai `image`. */
+  full?: string
 }
 
 export interface PoBatch {
@@ -125,6 +140,8 @@ export interface SiteConfig {
   }
   payment: {
     methods: string[]
+    /** Foto QRIS yang ditampilkan di langkah pembayaran form PO (path seperti `image`). */
+    qrisImage?: string
   }
   byteSquad: {
     stampsNeeded: number
@@ -137,6 +154,7 @@ export interface SiteConfig {
     description: string
   }
   testimonials: Testimonial[]
+  testimonialPhotos: TestimonialPhoto[]
   faq: FaqItem[]
 }
 

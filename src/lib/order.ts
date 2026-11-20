@@ -67,6 +67,10 @@ export interface LineContent {
   qty: number
   /** Varian tetap dari isi bundle. */
   options?: Record<string, string>
+  /** Awalan key pilihan varian di `line.options`, mis. "sandwich" atau "sandwich-2". */
+  slot: string
+  /** Nama produk di form, mis. "Es Krim Gabin 2" kalau produk yang sama muncul lebih dari sekali di bundle. */
+  label: string
 }
 
 /** Isi 1 unit baris pesanan. Bundle dipecah menjadi produk-produknya. */
@@ -74,13 +78,29 @@ export function getLineContents(ref: ItemRef): LineContent[] {
   if (!ref.itemId) return []
   if (ref.kind === 'product') {
     const product = getProduct(ref.itemId)
-    return product ? [{ product, qty: 1 }] : []
+    return product ? [{ product, qty: 1, slot: product.id, label: product.name }] : []
   }
   const bundle = getBundle(ref.itemId)
   if (!bundle) return []
+  // Produk yang muncul lebih dari sekali di bundle diberi nomor, supaya tiap isinya punya pilihan varian sendiri.
+  const total = new Map<string, number>()
+  for (const item of bundle.items) total.set(item.productId, (total.get(item.productId) ?? 0) + 1)
+  const seen = new Map<string, number>()
   return bundle.items.flatMap((item) => {
     const product = getProduct(item.productId)
-    return product ? [{ product, qty: item.qty, options: item.options }] : []
+    if (!product) return []
+    const n = (seen.get(product.id) ?? 0) + 1
+    seen.set(product.id, n)
+    const numbered = (total.get(product.id) ?? 0) > 1
+    return [
+      {
+        product,
+        qty: item.qty,
+        options: item.options,
+        slot: numbered ? `${product.id}-${n}` : product.id,
+        label: numbered ? `${product.name} ${n}` : product.name,
+      },
+    ]
   })
 }
 
@@ -96,18 +116,20 @@ export function optionKey(productId: string, groupId: string): string {
 export interface OptionField {
   key: string
   product: Product
+  /** Nama isi bundle, mis. "Es Krim Gabin 2". */
+  label: string
   group: OptionGroup
 }
 
 /** Semua pilihan varian yang wajib diisi untuk sebuah baris (varian tetap di bundle tidak termasuk). */
 export function getOptionFields(ref: ItemRef): OptionField[] {
   const seen = new Set<string>()
-  return getLineContents(ref).flatMap(({ product, options }) =>
+  return getLineContents(ref).flatMap(({ product, options, slot, label }) =>
     product.optionGroups.flatMap((group) => {
-      const key = optionKey(product.id, group.id)
+      const key = optionKey(slot, group.id)
       if (options?.[group.id] || seen.has(key)) return []
       seen.add(key)
-      return [{ key, product, group }]
+      return [{ key, product, label, group }]
     }),
   )
 }
@@ -369,9 +391,9 @@ function describeLine(line: OrderLine): string[] {
     const options = describeOptions(line, line.itemId)
     return options ? [options] : []
   }
-  return getLineContents(line).map(({ product, qty, options }) => {
+  return getLineContents(line).map(({ product, qty, options, slot }) => {
     const details = product.optionGroups
-      .map((group) => `${group.label}: ${options?.[group.id] ?? line.options[optionKey(product.id, group.id)] ?? '-'}`)
+      .map((group) => `${group.label}: ${options?.[group.id] ?? line.options[optionKey(slot, group.id)] ?? '-'}`)
       .join(', ')
     return `- ${qty}x ${product.name}${details ? ` (${details})` : ''}`
   })
@@ -397,6 +419,7 @@ export function buildWhatsAppMessage(form: OrderForm, now: Date = new Date(), or
   out.push(`*Batch PO:* ${batch?.name ?? '-'}`)
   out.push(`*Tanggal ${form.method === 'delivery' ? 'antar' : 'ambil'}:* ${batch ? formatDateLong(batch.fulfillmentDate) : '-'}`)
   out.push(`*Metode:* ${form.method ? METHOD_LABELS[form.method] : '-'}`)
+  out.push(`*Pembayaran:* ${site.payment.methods.join('/')} (sudah dibayar)`)
   if (form.method === 'delivery') {
     out.push(`*Lokasi antar:* ${form.address.trim()}`)
   }
@@ -409,7 +432,7 @@ export function buildWhatsAppMessage(form: OrderForm, now: Date = new Date(), or
     for (const info of infos) out.push(`_Info: ${info}_`)
   }
 
-  out.push('', `Mohon konfirmasi & info pembayarannya (${site.payment.methods.join('/')}). Terima kasih!`)
+  out.push('', `Bukti pembayaran ${site.payment.methods.join('/')} saya lampirkan di chat ini. Mohon dicek & dikonfirmasi ya. Terima kasih!`)
   return out.join('\n')
 }
 
@@ -484,10 +507,10 @@ export const ORDER_STATUSES: OrderStatus[] = ['Baru', 'Lunas', 'Diantar', 'Batal
 /** Pecah pesanan ke satuan produksi: bundle jadi produk-produknya, varian ditulis sebagai label pilihan. */
 export function getProductionUnits(lines: OrderLine[]): ProductionUnit[] {
   return lines.flatMap((line) =>
-    getLineContents(line).map(({ product, qty, options }) => ({
+    getLineContents(line).map(({ product, qty, options, slot }) => ({
       product: product.name,
       variant: product.optionGroups
-        .map((group) => options?.[group.id] ?? line.options[optionKey(product.id, group.id)] ?? '')
+        .map((group) => options?.[group.id] ?? line.options[optionKey(slot, group.id)] ?? '')
         .join(' / '),
       qty: qty * line.qty,
     })),

@@ -124,7 +124,7 @@ export function LineEditor({ line, index, errors, canRemove, onChange, onRemove 
           {fields.map((field) => {
             const id = `${line.key}-${field.key.replace('.', '-')}`
             const error = errors?.options?.[field.key]
-            const label = line.kind === 'bundle' ? `${field.group.label} · ${field.product.name}` : field.group.label
+            const label = line.kind === 'bundle' ? `${field.group.label} · ${field.label}` : field.group.label
             return (
               <div key={field.key}>
                 <label htmlFor={id} className={labelClass}>

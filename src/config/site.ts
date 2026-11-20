@@ -49,8 +49,10 @@ const fulfillmentMethods: FulfillmentMethod[] = ['delivery']
 const hasPickup = fulfillmentMethods.includes('pickup')
 const fulfillmentVerb = hasPickup ? 'diambil/diantar' : 'diantar'
 
+// Semua pesanan dibayar di depan lewat QRIS; bukti bayar dikirim pembeli ke WA admin.
 const payment = {
-  methods: ['QRIS', 'Tunai'],
+  methods: ['QRIS'],
+  qrisImage: 'images/qris.jpg',
 }
 
 const products: Product[] = [
@@ -63,29 +65,65 @@ const products: Product[] = [
     texture: 'sandwich',
     price: 10000,
     deliverable: true,
-    optionGroups: [{ id: 'rasa', label: 'Rasa', choices: ['Oreo Mint', 'Strawberry', 'Cokelat'] }],
+    optionGroups: [{ id: 'rasa', label: 'Rasa', choices: ['Oreo Mint', 'Strawberry', 'Cokelat', 'Matcha', 'Mangga'] }],
     image: 'images/gabin.jpg',
     imageLabel: 'Es Krim Gabin',
+    // Menu tampil satu kartu per rasa; foto tiap kartu = gallery dengan label rasa yang sama.
+    cardPerChoice: 'rasa',
+    // DRAFT — deskripsi per rasa, sesuaikan dengan rasa aslinya.
+    choiceDescriptions: {
+      'Oreo Mint': 'Es krim mint yang segar dengan remahan Oreo di tiap gigitan, dijepit crackers renyah. Dinginnya dobel!',
+      Strawberry: 'Es krim strawberry yang manis dan sedikit asam, dijepit crackers renyah. Rasa klasik yang nggak pernah salah.',
+      Cokelat: 'Es krim cokelat yang pekat dan creamy, dijepit crackers renyah. Wajib coba buat kamu pencinta cokelat.',
+      Matcha: 'Es krim matcha dengan rasa teh hijau yang lembut dan sedikit pahit, dijepit crackers renyah. Manisnya pas, nggak berlebihan.',
+      Mangga: 'Es krim mangga yang manis dan segar khas buah tropis, dijepit crackers renyah. Cocok buat siang yang panas.',
+    },
     gallery: [
-      { label: 'Semua', image: 'images/gabin.jpg' },
       { label: 'Oreo Mint', image: 'images/gabin-oreo-mint.jpg' },
       { label: 'Strawberry', image: 'images/gabin-strawberry.jpg' },
       { label: 'Cokelat', image: 'images/gabin-cokelat.jpg' },
+      { label: 'Matcha', image: 'images/gabin-matcha.jpg' },
+      { label: 'Mangga', image: 'images/gabin-mangga.jpg' },
     ],
   },
 ]
 
 // Kosong = section Bundle, menu navbar Bundle, dan pilihan bundle di form disembunyikan.
+// DRAFT — harga bundle masih usulan (hemat Rp1.000 per Gabin), cek ulang dengan tim.
+// Item tanpa `options` = rasanya dipilih pembeli di form.
 const bundles: Bundle[] = [
+  {
+    id: 'byte-pair',
+    name: 'Byte Pair',
+    description: 'Dua Es Krim Gabin buat kamu dan bestie. Rasanya pilih sendiri-sendiri.',
+    price: 19000,
+    items: [
+      { productId: 'sandwich', qty: 1 },
+      { productId: 'sandwich', qty: 1 },
+    ],
+  },
   {
     id: 'byte-trio',
     name: 'Byte Trio',
-    description: 'Tiga Es Krim Gabin, satu dari tiap rasa. Cobain semua varian sekaligus!',
+    description: 'Tiga Es Krim Gabin, rasanya bebas kamu pilih. Mau campur atau kembar tiga, terserah!',
     price: 27000,
+    items: [
+      { productId: 'sandwich', qty: 1 },
+      { productId: 'sandwich', qty: 1 },
+      { productId: 'sandwich', qty: 1 },
+    ],
+  },
+  {
+    id: 'full-stack',
+    name: 'Full Stack',
+    description: 'Lima Es Krim Gabin, satu dari tiap rasa. Cobain semua varian sekaligus!',
+    price: 45000,
     items: [
       { productId: 'sandwich', qty: 1, options: { rasa: 'Oreo Mint' } },
       { productId: 'sandwich', qty: 1, options: { rasa: 'Strawberry' } },
       { productId: 'sandwich', qty: 1, options: { rasa: 'Cokelat' } },
+      { productId: 'sandwich', qty: 1, options: { rasa: 'Matcha' } },
+      { productId: 'sandwich', qty: 1, options: { rasa: 'Mangga' } },
     ],
   },
 ]
@@ -127,7 +165,7 @@ const faq: FaqItem[] = [
   },
   {
     question: 'Bayarnya pakai apa?',
-    answer: `Bisa ${payment.methods.join(' atau ')}. Detail pembayaran dikirim admin waktu konfirmasi pesanan di WhatsApp.`,
+    answer: `Semua pesanan dibayar di depan lewat ${payment.methods.join(' atau ')}. Setelah isi form, kode QRIS dan total bayar muncul — bayar, screenshot buktinya, lalu kirim ke WhatsApp admin. Pesanan diproses setelah admin mengecek bukti bayar.`,
   },
   {
     question: 'Bisa PO untuk acara himpunan, UKM, atau kepanitiaan?',
@@ -154,9 +192,9 @@ export const site: SiteConfig = {
     name: 'IceByte',
     version: 'v1.0',
     slogan: 'Take a Byte!',
-    tagline: 'Es Krim Gabin tiga rasa — pick your Byte.',
-    valueProp: 'Es krim gabin tiga rasa dari gerai kampus, dengan harga mahasiswa.',
-    heroDescription: `Es krim gabin tiga rasa buatan mahasiswa ${campus.name}. Harganya ramah di kantong — pilih favoritmu dan pesan langsung lewat WhatsApp.`,
+    tagline: 'Es Krim Gabin lima rasa — pick your Byte.',
+    valueProp: 'Es krim gabin lima rasa dari gerai kampus, dengan harga mahasiswa.',
+    heroDescription: `Es krim gabin lima rasa buatan mahasiswa ${campus.name}. Harganya ramah di kantong — pilih favoritmu dan pesan langsung lewat WhatsApp.`,
   },
   campus,
   contact,
@@ -167,7 +205,7 @@ export const site: SiteConfig = {
     // DRAFT — silakan disesuaikan dengan cerita asli tim.
     inspiration: [
       `Kami bersepuluh adalah mahasiswa S1 Teknik Komputer ${campus.name}. Hari-hari kami diisi coding, praktikum, dan debugging sampai larut — dan di sela semua itu, jajanan manis selalu jadi penyelamat.`,
-      'Dari obrolan di sela tugas, muncul ide: kenapa nggak bikin jajanan sendiri yang enak, beda, dan tetap ramah di kantong mahasiswa? Kami mulai dari es krim gabin dengan tiga varian rasa — Oreo Mint, Strawberry, dan Cokelat.',
+      'Dari obrolan di sela tugas, muncul ide: kenapa nggak bikin jajanan sendiri yang enak, beda, dan tetap ramah di kantong mahasiswa? Kami mulai dari es krim gabin dengan tiga varian rasa — Oreo Mint, Strawberry, dan Cokelat — lalu menambah Matcha dan Mangga.',
       'IceByte kami jalankan seperti satu tim proyek: ada yang pegang produksi, keuangan, promosi, sampai website ini. Cara kerjanya pun ala anak Teknik Komputer — coba, evaluasi, perbaiki, lalu rilis versi yang lebih baik. Ini baru v1.0, dan kami akan terus update.',
     ],
   },
@@ -202,5 +240,11 @@ export const site: SiteConfig = {
   },
   // Isi HANYA dengan testimoni asli (dengan izin pelanggan). Biarkan kosong kalau belum ada.
   testimonials: [],
+  // Foto asli pelanggan (dengan izin). File di public/images/testi/: NN.jpg (thumbnail) + NN-full.jpg (besar).
+  // Tambah foto baru: siapkan dua file itu, lalu tambah angkanya di sini.
+  testimonialPhotos: Array.from({ length: 16 }, (_, i) => {
+    const id = String(i + 1).padStart(2, '0')
+    return { image: `images/testi/${id}.jpg`, full: `images/testi/${id}-full.jpg` }
+  }),
   faq,
 }

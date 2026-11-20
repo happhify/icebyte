@@ -1,6 +1,6 @@
 import { site } from '../config/site'
-import { formatRupiah, getBundleNormalPrice, getBundleSavings, getLineContents } from '../lib/order'
-import type { ItemKind } from '../types'
+import { formatRupiah, getBundleNormalPrice, getBundleSavings, getLineContents, type LineContent } from '../lib/order'
+import type { ItemKind, Product } from '../types'
 import { IconPlus, IconTruck } from './Icons'
 import { Reveal } from './Reveal'
 import { SectionHeading } from './SectionHeading'
@@ -10,6 +10,21 @@ interface BundlesProps {
 }
 
 const CARD_BG = ['bg-sky-soft', 'bg-caramel-soft', 'bg-coral-soft']
+
+/** Isi bundle untuk kartu: produk + keterangan yang sama digabung, mis. "3x Es Krim Gabin — rasa bebas pilih". */
+function summarizeContents(contents: LineContent[]): { product: Product; qty: number; detail: string }[] {
+  const rows = new Map<string, { product: Product; qty: number; detail: string }>()
+  for (const { product, qty, options } of contents) {
+    const detail = product.optionGroups
+      .map((group) => options?.[group.id] ?? `${group.label.toLowerCase()} bebas pilih`)
+      .join(', ')
+    const key = `${product.id}\u0000${detail}`
+    const row = rows.get(key)
+    if (row) row.qty += qty
+    else rows.set(key, { product, qty, detail })
+  }
+  return [...rows.values()]
+}
 
 export function Bundles({ onAdd }: BundlesProps) {
   if (site.bundles.length === 0) return null
@@ -52,12 +67,12 @@ export function Bundles({ onAdd }: BundlesProps) {
                   <p className="mt-2 text-cocoa">{bundle.description}</p>
 
                   <ul className="mt-4 space-y-1.5" aria-label={`Isi ${bundle.name}`}>
-                    {contents.map(({ product, qty, options }, i) => (
+                    {summarizeContents(contents).map(({ product, qty, detail }, i) => (
                       <li key={i} className="flex items-baseline gap-2">
                         <span className="font-mono text-sm font-bold text-ice-deep">{qty}x</span>
                         <span>
                           {product.name}
-                          {options ? <span className="text-cocoa"> — {Object.values(options).join(', ')}</span> : null}
+                          {detail ? <span className="text-cocoa"> — {detail}</span> : null}
                         </span>
                       </li>
                     ))}

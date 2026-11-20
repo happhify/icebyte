@@ -28,7 +28,14 @@ const valid = {
   address: 'Kos Melati',
   notes: '',
   admin: 'Admin 1',
-  lines: [{ kind: 'bundle', itemId: 'byte-trio', qty: 1, options: {} }],
+  lines: [
+    {
+      kind: 'bundle',
+      itemId: 'byte-trio',
+      qty: 1,
+      options: { 'sandwich-1.rasa': 'Oreo Mint', 'sandwich-2.rasa': 'Matcha', 'sandwich-3.rasa': 'Mangga' },
+    },
+  ],
   website: '',
 }
 
