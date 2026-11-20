@@ -35,6 +35,7 @@ export const ORDER_COLUMNS: { header: string; value: (o: StoredOrder) => CellVal
   { header: 'Catatan', value: (o) => o.notes },
   { header: 'Admin', value: (o) => o.admin },
   { header: 'Status', value: (o) => o.status },
+  { header: 'Bukti bayar', value: (o) => (o.hasProof ? 'Ada' : '–') },
 ]
 
 export function buildOrderRows(orders: StoredOrder[]): CellValue[][] {

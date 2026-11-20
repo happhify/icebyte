@@ -20,6 +20,7 @@ export function order(patch: Partial<StoredOrder> = {}): StoredOrder {
     itemsSummary: '',
     total: 0,
     status: 'Baru',
+    hasProof: false,
     ...patch,
   }
 }

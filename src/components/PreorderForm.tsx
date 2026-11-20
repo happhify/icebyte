@@ -43,18 +43,38 @@ function openWhatsApp(url: string) {
   else window.location.href = url
 }
 
-/**
- * Simpan pesanan ke rekap (halaman admin) di latar belakang. Tidak ditunggu: WhatsApp tetap langsung terbuka,
- * dan kalau gagal, pesanan tetap sampai lewat chat. keepalive supaya tetap terkirim walau halaman berpindah ke WA.
- */
-function saveOrder(payload: ReturnType<typeof buildOrderPayload>) {
-  fetch('/api/orders', {
-    method: 'POST',
-    keepalive: true,
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(payload),
-  }).catch(() => {})
+/** Isi file sebagai base64 (tanpa awalan "data:…;base64,"). */
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(String(reader.result).replace(/^data:[^,]*,/, ''))
+    reader.onerror = () => reject(reader.error ?? new Error('Gagal membaca foto.'))
+    reader.readAsDataURL(file)
+  })
 }
+
+/** Simpan pesanan + bukti bayar ke rekap (halaman admin). Ditunggu: WA baru dibuka setelah tersimpan. */
+async function postOrder(payload: ReturnType<typeof buildOrderPayload>): Promise<string | null> {
+  try {
+    const response = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    if (response.ok) return null
+    const isJson = (response.headers.get('content-type') ?? '').includes('application/json')
+    const body = isJson ? ((await response.json().catch(() => null)) as { error?: string } | null) : null
+    return body?.error ?? `Gagal menyimpan pesanan (${response.status}). Coba lagi.`
+  } catch {
+    return 'Koneksi bermasalah, pesanan belum terkirim. Coba lagi.'
+  }
+}
+
+export type UploadState =
+  | { status: 'idle' }
+  | { status: 'sending' }
+  | { status: 'saved' }
+  | { status: 'error'; error: string }
 
 /* ------------------------------------------------------------------ */
 
@@ -81,6 +101,9 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
   // Langkah 1 = isi form, langkah 2 = bayar QRIS lalu kirim bukti ke WA.
   const [step, setStep] = useState<'form' | 'pay'>('form')
   const [pendingId, setPendingId] = useState('')
+  const [upload, setUpload] = useState<UploadState>({ status: 'idle' })
+  // WA terakhir dibuka setelah upload (true) atau lewat jalur cadangan tanpa upload (false).
+  const [sentWithProof, setSentWithProof] = useState(false)
   // Pesanan terakhir yang sudah direkap, supaya klik kirim berulang tanpa perubahan tidak tercatat dobel.
   const [lastLogged, setLastLogged] = useState<{ key: string; id: string } | null>(null)
   // Honeypot anti-bot: input tersembunyi yang hanya diisi bot.
@@ -105,6 +128,7 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
   const resetSent = () => {
     setSentUrl(null)
     setStep('form')
+    setUpload({ status: 'idle' })
   }
 
   const edit =
@@ -149,8 +173,8 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
     return false
   }
 
-  const orderKey = (current: Date) =>
-    JSON.stringify({ form, admin: admin.phone, batch: getOpenBatch(current)?.name })
+  // Identitas isi pesanan (tanpa admin: ganti admin setelah upload tidak membuat pesanan baru).
+  const orderKey = (current: Date) => JSON.stringify({ form, batch: getOpenBatch(current)?.name })
 
   // Langkah 1 → 2: tampilkan QRIS. Belum ada yang disimpan dan WA belum dibuka.
   const handleSubmit = (event: FormEvent) => {
@@ -162,21 +186,42 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
     requestAnimationFrame(() => document.getElementById('po-pay-title')?.scrollIntoView({ block: 'start' }))
   }
 
-  // Langkah 2: pembeli sudah bayar → simpan ke rekap lalu buka WA untuk kirim bukti.
-  const sendOrder = () => {
+  // Langkah 2a: upload bukti bayar → pesanan + foto tersimpan ke rekap.
+  const submitProof = async (file: File) => {
     const current = currentDate()
     if (!checkForm(current)) return
-
     const key = orderKey(current)
-    const isRepeat = lastLogged?.key === key
-    const id = isRepeat ? lastLogged.id : pendingId || createOrderId(current)
-    if (!isRepeat) {
-      saveOrder(buildOrderPayload(form, id, admin.label, honeypot))
-      setLastLogged({ key, id })
+    // Isi sama dengan yang sudah tersimpan: tidak perlu upload ulang.
+    if (lastLogged?.key === key) {
+      setPendingId(lastLogged.id)
+      setUpload({ status: 'saved' })
+      return
     }
+    const id = pendingId || createOrderId(current)
+    setUpload({ status: 'sending' })
+    let data: string
+    try {
+      data = await fileToBase64(file)
+    } catch {
+      setUpload({ status: 'error', error: 'Foto tidak bisa dibaca. Pilih ulang fotonya.' })
+      return
+    }
+    const error = await postOrder(buildOrderPayload(form, id, admin.label, honeypot, data))
+    if (error) {
+      setUpload({ status: 'error', error })
+      return
+    }
+    setLastLogged({ key, id })
+    setPendingId(id)
+    setUpload({ status: 'saved' })
+  }
 
-    const url = buildWhatsAppUrl(admin.phone, buildWhatsAppMessage(form, current, id))
+  // Langkah 2b: konfirmasi ke WA admin (klik langsung, jadi tidak diblokir popup blocker).
+  const openChat = (proofUploaded: boolean) => {
+    const current = currentDate()
+    const url = buildWhatsAppUrl(admin.phone, buildWhatsAppMessage(form, current, pendingId, { proofUploaded }))
     setSentUrl(url)
+    setSentWithProof(proofUploaded)
     openWhatsApp(url)
   }
 
@@ -476,7 +521,10 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
                 total={total}
                 orderId={pendingId}
                 adminLabel={admin.label}
-                onSend={sendOrder}
+                upload={upload}
+                onSubmit={submitProof}
+                onConfirm={() => openChat(true)}
+                onFallback={() => openChat(false)}
                 onBack={resetSent}
               />
             ) : (
@@ -504,8 +552,17 @@ export function PreorderForm({ lines, onLinesChange, notice }: PreorderFormProps
 
             {sentUrl ? (
               <p role="status" className="mt-4 rounded-field bg-sky-soft px-3 py-2 text-sm text-ice-deep">
-                WhatsApp dibuka di tab baru. <strong>Jangan lupa lampirkan screenshot bukti bayar</strong> di chat. Belum
-                terbuka?{' '}
+                WhatsApp dibuka di tab baru.{' '}
+                {sentWithProof ? (
+                  <>
+                    <strong>Tekan kirim</strong> di WhatsApp supaya admin tahu pesananmu.
+                  </>
+                ) : (
+                  <>
+                    <strong>Jangan lupa lampirkan screenshot bukti bayar</strong> di chat.
+                  </>
+                )}{' '}
+                Belum terbuka?{' '}
                 <a href={sentUrl} target="_blank" rel="noopener noreferrer" className="font-bold underline">
                   Buka WhatsApp
                 </a>

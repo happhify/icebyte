@@ -399,7 +399,17 @@ function describeLine(line: OrderLine): string[] {
   })
 }
 
-export function buildWhatsAppMessage(form: OrderForm, now: Date = new Date(), orderId?: string): string {
+export interface WhatsAppMessageOptions {
+  /** Bukti bayar sudah diupload di website (bukan dilampirkan di chat). */
+  proofUploaded?: boolean
+}
+
+export function buildWhatsAppMessage(
+  form: OrderForm,
+  now: Date = new Date(),
+  orderId?: string,
+  { proofUploaded = false }: WhatsAppMessageOptions = {},
+): string {
   const batch = getOpenBatch(now)
   const out: string[] = [`Halo ${site.brand.name}! Saya mau pre-order ya.`, '']
 
@@ -419,7 +429,12 @@ export function buildWhatsAppMessage(form: OrderForm, now: Date = new Date(), or
   out.push(`*Batch PO:* ${batch?.name ?? '-'}`)
   out.push(`*Tanggal ${form.method === 'delivery' ? 'antar' : 'ambil'}:* ${batch ? formatDateLong(batch.fulfillmentDate) : '-'}`)
   out.push(`*Metode:* ${form.method ? METHOD_LABELS[form.method] : '-'}`)
-  out.push(`*Pembayaran:* ${site.payment.methods.join('/')} (sudah dibayar)`)
+  const payment = site.payment.methods.join('/')
+  out.push(
+    proofUploaded
+      ? `*Pembayaran:* ${payment} — bukti bayar sudah diupload di website`
+      : `*Pembayaran:* ${payment} (sudah dibayar)`,
+  )
   if (form.method === 'delivery') {
     out.push(`*Lokasi antar:* ${form.address.trim()}`)
   }
@@ -432,7 +447,12 @@ export function buildWhatsAppMessage(form: OrderForm, now: Date = new Date(), or
     for (const info of infos) out.push(`_Info: ${info}_`)
   }
 
-  out.push('', `Bukti pembayaran ${site.payment.methods.join('/')} saya lampirkan di chat ini. Mohon dicek & dikonfirmasi ya. Terima kasih!`)
+  out.push(
+    '',
+    proofUploaded
+      ? `Bukti bayar untuk ID Order ${orderId ?? '-'} sudah saya upload di website. Mohon dicek ya. Terima kasih!`
+      : `Bukti pembayaran ${payment} saya lampirkan di chat ini. Mohon dicek & dikonfirmasi ya. Terima kasih!`,
+  )
   return out.join('\n')
 }
 
@@ -476,13 +496,14 @@ export function summarizeOrder(lines: OrderLine[]): string {
     .join('\n')
 }
 
-/** Isi kiriman ke POST /api/orders. Baris kosong dibuang; `key` hanya dipakai di UI. */
+/** Isi kiriman ke POST /api/orders. Baris kosong dibuang; `key` hanya dipakai di UI. `proofBase64` = foto bukti bayar. */
 export function buildOrderPayload(
   form: OrderForm,
   id: string,
   admin: string,
   honeypot: string,
-): OrderInput & { id: string; website: string } {
+  proofBase64?: string,
+): OrderInput & { id: string; website: string; proof?: { data: string } } {
   return {
     id,
     name: form.name,
@@ -495,6 +516,7 @@ export function buildOrderPayload(
     lines: form.lines
       .filter((line) => line.itemId)
       .map(({ kind, itemId, qty, options }) => ({ kind, itemId, qty, options })),
+    ...(proofBase64 === undefined ? {} : { proof: { data: proofBase64 } }),
   }
 }
 

@@ -17,7 +17,7 @@ describe('Excel: sheet Pesanan', () => {
     ])
     expect(rows[0]).toEqual([
       'ID', 'Waktu', 'Sumber', 'Batch', 'Tanggal antar', 'Nama', 'No. WA', 'Metode', 'Lokasi',
-      'Pesanan', 'Total', 'Catatan', 'Admin', 'Status',
+      'Pesanan', 'Total', 'Catatan', 'Admin', 'Status', 'Bukti bayar',
     ])
     expect(rows[1].slice(0, 2)).toEqual(['IB-1031-AAAA', '01/11/2026 00:05'])
     expect(rows[1][4]).toBe('Minggu, 8 November 2026')
@@ -26,6 +26,8 @@ describe('Excel: sheet Pesanan', () => {
     expect(rows[1][9]).toBe('1x A\n1x B')
     expect(rows[1][10]).toBe(27000)
     expect(rows[1][13]).toBe('Lunas')
+    expect(rows[1][14]).toBe('–')
+    expect(buildOrderRows([order({ hasProof: true })])[1][14]).toBe('Ada')
   })
 })
 

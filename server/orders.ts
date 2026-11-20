@@ -11,6 +11,7 @@ import {
   validateOrder,
 } from '../src/lib/order.js'
 import type { OrderErrors, OrderInput, OrderLine, OrderSource, OrderStatus, PoBatch } from '../src/types/index.js'
+import { parseProof, type Proof } from './proof.js'
 import type { NewOrder, OrderRepository } from './repository.js'
 
 export interface ApiResult {
@@ -146,10 +147,12 @@ export async function handlePublicOrder(
 
   const { errors, batchError } = checkBusinessRules(parsed.value, now)
   if (hasErrors(errors)) return invalid('Data pesanan tidak valid.', errors)
+  const proof = parseProof(body.proof)
+  if (!proof.ok) return invalid(proof.error)
   const batch = getOpenBatch(now)
   if (batchError || !batch) return { status: 409, body: { error: batchError ?? 'PO sedang tutup.' } }
 
-  const outcome = await repo.insert(buildNewOrder(parsed.value, id, 'Website', batch))
+  const outcome = await repo.insert(buildNewOrder(parsed.value, id, 'Website', batch), proof.value)
   return outcome === 'created' ? { status: 201, body: { id } } : { status: 200, body: { id, duplicate: true } }
 }
 
@@ -196,4 +199,15 @@ export async function handleUpdateStatus(
   if (!ORDER_STATUSES.includes(status as OrderStatus)) return invalid('Status tidak dikenali.')
   const order = await repo.updateStatus(id, status as OrderStatus)
   return order ? { status: 200, body: { order } } : { status: 404, body: { error: 'Pesanan tidak ditemukan.' } }
+}
+
+/** GET /api/admin/proof?id= — foto bukti bayar sebuah pesanan. */
+export async function handleGetProof(
+  id: string,
+  { repo }: { repo: OrderRepository },
+): Promise<{ ok: true; proof: Proof } | { ok: false; result: ApiResult }> {
+  const proof = ORDER_ID.test(id) ? await repo.getProof(id) : null
+  return proof
+    ? { ok: true, proof }
+    : { ok: false, result: { status: 404, body: { error: 'Bukti bayar tidak ditemukan.' } } }
 }

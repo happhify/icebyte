@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it } from 'vitest'
 import { site } from '../src/config/site.js'
 import type { StoredOrder } from '../src/types/index.js'
-import { handleAdminCreate, handleListOrders, handlePublicOrder, handleUpdateStatus } from './orders.js'
+import { handleAdminCreate, handleGetProof, handleListOrders, handlePublicOrder, handleUpdateStatus } from './orders.js'
 import { createMemoryRepository, type NewOrder } from './repository.js'
 
 // Batch contoh yang mencakup NOW, supaya test tidak bergantung pada tanggal batch asli.
@@ -20,6 +20,11 @@ afterAll(() => {
 const NOW = new Date(2026, 8, 28, 10, 0)
 const CLOSED = new Date(2026, 11, 1, 10, 0)
 
+// Foto JPEG kecil (header JPEG + isi kosong), dalam base64 seperti yang dikirim form.
+const JPEG_BYTES = new Uint8Array(32)
+JPEG_BYTES.set([0xff, 0xd8, 0xff, 0xe0])
+const PROOF = { data: Buffer.from(JPEG_BYTES).toString('base64') }
+
 const valid = {
   id: 'IB-0928-K3F9',
   name: 'Rara',
@@ -37,6 +42,7 @@ const valid = {
     },
   ],
   website: '',
+  proof: PROOF,
 }
 
 describe('pesanan dari website', () => {
@@ -54,16 +60,34 @@ describe('pesanan dari website', () => {
       itemsSummary: expect.stringContaining('Byte Trio'),
     })
     expect(o.units).toHaveLength(3)
+    expect(o.hasProof).toBe(true)
+    expect(await repo.getProof(o.id)).toEqual({ mime: 'image/jpeg', bytes: JPEG_BYTES })
+  })
+
+  it('tanpa bukti bayar atau bukan gambar → 400, tidak tersimpan', async () => {
+    const repo = createMemoryRepository()
+    const { proof: _proof, ...noProof } = valid
+    const missing = await handlePublicOrder(noProof, { repo, now: NOW })
+    expect(missing.status).toBe(400)
+    expect(missing.body).toEqual({ error: 'Bukti bayar wajib diupload.' })
+    const pdf = await handlePublicOrder(
+      { ...valid, proof: { data: Buffer.from('%PDF-1.7 isi').toString('base64') } },
+      { repo, now: NOW },
+    )
+    expect(pdf.status).toBe(400)
+    expect(await repo.list()).toEqual([])
   })
 
   it('ID sama dua kali → 200 duplicate, tetap satu baris, data lama tidak ditimpa', async () => {
     const repo = createMemoryRepository()
     await handlePublicOrder(valid, { repo, now: NOW })
-    const res = await handlePublicOrder({ ...valid, name: 'Budi' }, { repo, now: NOW })
+    const otherPng = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2]).toString('base64')
+    const res = await handlePublicOrder({ ...valid, name: 'Budi', proof: { data: otherPng } }, { repo, now: NOW })
     expect(res).toEqual({ status: 200, body: { id: valid.id, duplicate: true } })
     const orders = await repo.list()
     expect(orders).toHaveLength(1)
     expect(orders[0].name).toBe('Rara')
+    expect((await repo.getProof(valid.id))?.mime).toBe('image/jpeg')
   })
 
   it('honeypot terisi → 201 tapi tidak tersimpan', async () => {
@@ -124,7 +148,7 @@ describe('pesanan dari website', () => {
 })
 
 describe('pesanan dari chat WA (admin)', () => {
-  const { id: _id, website: _website, ...rest } = valid
+  const { id: _id, website: _website, proof: _proof, ...rest } = valid
 
   it('ID dibuat server, sumber Chat WA, batch tutup tetap diterima', async () => {
     const repo = createMemoryRepository()
@@ -136,6 +160,7 @@ describe('pesanan dari chat WA (admin)', () => {
       batch: 'Batch Test',
       deliveryDate: '2026-10-03',
       total: 27000,
+      hasProof: false,
     })
   })
 
@@ -191,5 +216,18 @@ describe('daftar & status', () => {
     expect((ok.body as { order: StoredOrder }).order.status).toBe('Lunas')
     expect((await handleUpdateStatus('IB-0101-AAAA', { status: 'Hilang' }, { repo })).status).toBe(400)
     expect((await handleUpdateStatus('IB-0101-ZZZZ', { status: 'Lunas' }, { repo })).status).toBe(404)
+  })
+})
+
+describe('foto bukti bayar (admin)', () => {
+  it('ada → 200 dengan jenis gambar; tidak ada → 404', async () => {
+    const repo = createMemoryRepository()
+    await handlePublicOrder(valid, { repo, now: NOW })
+    const found = await handleGetProof(valid.id, { repo })
+    expect(found).toEqual({ ok: true, proof: { mime: 'image/jpeg', bytes: JPEG_BYTES } })
+    expect(await handleGetProof('IB-0101-ZZZZ', { repo })).toEqual({
+      ok: false,
+      result: { status: 404, body: { error: 'Bukti bayar tidak ditemukan.' } },
+    })
   })
 })

@@ -447,7 +447,7 @@ describe('rekap order', () => {
 
   it('payload API: baris kosong dibuang, key tidak ikut, honeypot ikut', () => {
     const form = validForm({ lines: [gabinLine(2), line({ kind: 'product', itemId: '' })], notes: 'x' })
-    expect(buildOrderPayload(form, 'IB-0928-K3F9', 'Admin 1', '')).toEqual({
+    expect(buildOrderPayload(form, 'IB-0928-K3F9', 'Admin 1', '', 'QUJD')).toEqual({
       id: 'IB-0928-K3F9',
       name: 'Rara',
       phone: '0812-3456-7890',
@@ -457,7 +457,15 @@ describe('rekap order', () => {
       admin: 'Admin 1',
       website: '',
       lines: [{ kind: 'product', itemId: 'sandwich', qty: 2, options: { 'sandwich.rasa': 'Oreo Mint' } }],
+      proof: { data: 'QUJD' },
     })
+  })
+
+  it('pesan WA setelah upload bukti bayar di website', () => {
+    const msg = buildWhatsAppMessage(form, NOW, 'IB-0928-K3F9', { proofUploaded: true })
+    expect(msg).toContain('*Pembayaran:* QRIS — bukti bayar sudah diupload di website')
+    expect(msg).toContain('Bukti bayar untuk ID Order IB-0928-K3F9 sudah saya upload di website. Mohon dicek ya.')
+    expect(msg).not.toContain('saya lampirkan di chat ini')
   })
 })
 

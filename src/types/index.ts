@@ -244,4 +244,6 @@ export interface StoredOrder {
   itemsSummary: string
   total: number
   status: OrderStatus
+  /** Ada foto bukti bayar (isi fotonya diambil terpisah lewat /api/admin/proof). */
+  hasProof: boolean
 }
