@@ -1,12 +1,9 @@
-import { useEffect, useId, useState, type ChangeEvent } from 'react'
+import { useState } from 'react'
 import { site } from '../config/site'
 import { formatRupiah } from '../lib/order'
-import { IconAlert, IconCamera, IconCheck, IconChat, IconCopy, IconDownload } from './Icons'
+import { IconAlert, IconCheck, IconChat, IconCopy, IconDownload } from './Icons'
 import type { UploadState } from './PreorderForm'
-
-/** Sama dengan batas server (server/proof.ts). Foto disimpan apa adanya, tidak diperkecil. */
-const MAX_PROOF_BYTES = 5 * 1024 * 1024
-const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp']
+import { ProofPicker } from './ProofPicker'
 
 interface PaymentPanelProps {
   total: number
@@ -23,9 +20,6 @@ interface PaymentPanelProps {
   onBack: () => void
 }
 
-const formatSize = (bytes: number) =>
-  bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`
-
 /** Langkah 2 form PO: bayar QRIS → upload bukti bayar → konfirmasi ke WhatsApp admin. */
 export function PaymentPanel({
   total,
@@ -39,16 +33,10 @@ export function PaymentPanel({
 }: PaymentPanelProps) {
   const [copied, setCopied] = useState(false)
   const [file, setFile] = useState<File | null>(null)
-  const [preview, setPreview] = useState<string | null>(null)
-  const [fileError, setFileError] = useState('')
-  const inputId = useId()
   const qris = site.payment.qrisImage
   const multipleAdmins = site.contact.whatsappAdmins.length > 1
   const sending = upload.status === 'sending'
   const saved = upload.status === 'saved'
-
-  // Lepas URL pratinjau lama supaya memori tidak bocor.
-  useEffect(() => () => (preview ? URL.revokeObjectURL(preview) : undefined), [preview])
 
   // Nominal tanpa "Rp" dan titik, siap ditempel di aplikasi pembayaran.
   const copyAmount = async () => {
@@ -59,23 +47,6 @@ export function PaymentPanel({
     } catch {
       // Clipboard tidak tersedia (izin/http): nominal tetap terbaca di layar.
     }
-  }
-
-  const pickFile = (event: ChangeEvent<HTMLInputElement>) => {
-    const picked = event.target.files?.[0]
-    event.target.value = '' // supaya memilih file yang sama lagi tetap terbaca
-    if (!picked) return
-    if (!ACCEPTED.includes(picked.type)) {
-      setFileError('Format foto tidak didukung. Pakai screenshot bukti bayar (JPG atau PNG).')
-      return
-    }
-    if (picked.size > MAX_PROOF_BYTES) {
-      setFileError(`Foto ${formatSize(picked.size)}, maksimal 5 MB. Kirim screenshot bukti bayar saja.`)
-      return
-    }
-    setFileError('')
-    setFile(picked)
-    setPreview(URL.createObjectURL(picked))
   }
 
   return (
@@ -137,45 +108,13 @@ export function PaymentPanel({
       ) : (
         <>
           <div className="mt-4">
-            <p className="font-semibold">Upload bukti bayar</p>
-            <p className="text-xs text-cocoa">Screenshot dari aplikasi bank/e-wallet, JPG atau PNG, maksimal 5 MB.</p>
-            <input
-              id={inputId}
-              type="file"
-              accept={ACCEPTED.join(',')}
-              onChange={pickFile}
+            <ProofPicker
+              file={file}
+              onChange={setFile}
               disabled={sending}
-              className="sr-only"
-              aria-describedby={fileError ? `${inputId}-error` : undefined}
+              label="Upload bukti bayar"
+              hint="Screenshot dari aplikasi bank/e-wallet, JPG atau PNG, maksimal 5 MB."
             />
-            {file && preview ? (
-              <div className="mt-2 flex items-center gap-3 rounded-field border-2 border-chocolate bg-white p-2">
-                <img src={preview} alt="Pratinjau bukti bayar" className="size-16 shrink-0 rounded-chip object-cover" />
-                <div className="min-w-0 flex-1 text-sm">
-                  <p className="truncate font-semibold">{file.name}</p>
-                  <p className="text-cocoa">{formatSize(file.size)}</p>
-                </div>
-                <label
-                  htmlFor={inputId}
-                  className="inline-flex min-h-11 shrink-0 cursor-pointer items-center rounded-full px-2 text-sm font-semibold underline"
-                >
-                  Ganti
-                </label>
-              </div>
-            ) : (
-              <label
-                htmlFor={inputId}
-                className="mt-2 flex min-h-12 cursor-pointer items-center justify-center gap-2 rounded-field border-2 border-dashed border-chocolate bg-white px-3 text-sm font-semibold hover:bg-sky-soft"
-              >
-                <IconCamera className="size-5" />
-                Pilih foto bukti bayar
-              </label>
-            )}
-            {fileError ? (
-              <p id={`${inputId}-error`} role="alert" className="mt-2 text-sm font-semibold text-danger">
-                {fileError}
-              </p>
-            ) : null}
           </div>
 
           <p

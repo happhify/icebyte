@@ -104,6 +104,12 @@ export function createPostgresRepository(sql: Sql): OrderRepository {
         SELECT id FROM new_order`
       return rows.length > 0 ? 'created' : 'duplicate'
     },
+    async delete(id: string) {
+      await schema()
+      // Bukti bayar ikut terhapus lewat ON DELETE CASCADE.
+      const rows = await sql`DELETE FROM orders WHERE id = ${id} RETURNING id`
+      return rows.length > 0
+    },
     async getProof(id: string) {
       await schema()
       const rows = await sql`SELECT mime, encode(data, 'hex') AS data FROM payment_proofs WHERE order_id = ${id}`

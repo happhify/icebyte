@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { FieldError } from '../components/formParts'
 import { describedBy, labelClass } from '../components/formUtils'
 import { LineEditor } from '../components/LineEditor'
+import { ProofPicker } from '../components/ProofPicker'
 import { site } from '../config/site'
 import {
   METHOD_LABELS,
@@ -13,6 +14,7 @@ import {
   hasErrors,
   validateOrder,
 } from '../lib/order'
+import { fileToBase64 } from '../lib/proofFile'
 import type { FulfillmentMethod, OrderForm, OrderLine } from '../types'
 import { createOrder } from './api'
 
@@ -36,6 +38,7 @@ export function AddOrderDialog({ open, defaultBatch, onClose, onSaved, onError }
   const [method, setMethod] = useState<FulfillmentMethod | ''>(methods.length === 1 ? methods[0] : '')
   const [address, setAddress] = useState('')
   const [notes, setNotes] = useState('')
+  const [proof, setProof] = useState<File | null>(null)
   const [admin, setAdmin] = useState(admins[0]?.label ?? '')
   const [batch, setBatch] = useState(defaultBatch)
   const [submitted, setSubmitted] = useState(false)
@@ -63,6 +66,7 @@ export function AddOrderDialog({ open, defaultBatch, onClose, onSaved, onError }
     setLines([createLine()])
     setAddress('')
     setNotes('')
+    setProof(null)
     setSubmitted(false)
     setServerError('')
   }
@@ -76,7 +80,8 @@ export function AddOrderDialog({ open, defaultBatch, onClose, onSaved, onError }
     setBusy(true)
     setServerError('')
     try {
-      const { id: _id, website: _website, ...input } = buildOrderPayload(form, '', admin, '')
+      const proofData = proof ? await fileToBase64(proof) : undefined
+      const { id: _id, website: _website, ...input } = buildOrderPayload(form, '', admin, '', proofData)
       const order = await createOrder({ ...input, batch })
       setSavedId(order.id)
       setCopied(false)
@@ -246,6 +251,14 @@ export function AddOrderDialog({ open, defaultBatch, onClose, onSaved, onError }
           </label>
           <textarea id="ao-notes" maxLength={ORDER_LIMITS.notes} rows={2} className="field" value={notes} onChange={(e) => setNotes(e.target.value)} />
         </div>
+
+        <ProofPicker
+          file={proof}
+          onChange={setProof}
+          disabled={busy}
+          label="Bukti bayar (opsional)"
+          hint="Screenshot yang dikirim pembeli di chat. JPG/PNG/WebP, maksimal 5 MB."
+        />
 
         <FieldError id="ao-server-error">{serverError}</FieldError>
 

@@ -16,6 +16,8 @@ export interface OrderRepository {
   /** Nama batch yang ada di data. */
   batchNames(): Promise<string[]>
   updateStatus(id: string, status: OrderStatus): Promise<StoredOrder | null>
+  /** Hapus pesanan beserta bukti bayarnya. false kalau ID tidak ada. */
+  delete(id: string): Promise<boolean>
 }
 
 /** Repository di memori, untuk test. */
@@ -39,6 +41,13 @@ export function createMemoryRepository(): OrderRepository {
     },
     async batchNames() {
       return [...new Set(rows.map((row) => row.batch))]
+    },
+    async delete(id) {
+      const index = rows.findIndex((r) => r.id === id)
+      if (index === -1) return false
+      rows.splice(index, 1)
+      proofs.delete(id)
+      return true
     },
     async updateStatus(id, status) {
       const row = rows.find((r) => r.id === id)

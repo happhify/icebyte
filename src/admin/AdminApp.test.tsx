@@ -58,4 +58,26 @@ describe('AdminApp', () => {
     expect(screen.queryAllByText('Pembeli Batch Lama')).toHaveLength(0)
     expect(screen.getAllByText('Pembeli Semua').length).toBeGreaterThan(0)
   })
+
+  it('hapus pesanan: minta konfirmasi, kirim DELETE, baris hilang; batal konfirmasi = tidak terhapus', async () => {
+    const orders: StoredOrder[] = [order({ id: 'IB-1120-AAAA', name: 'Pembeli Uji' })]
+    const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+      if (init?.method === 'DELETE') return json(200, { id: 'IB-1120-AAAA' })
+      return json(200, { orders, batches: ['Batch 1'] })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const confirm = vi.fn(() => false)
+    vi.stubGlobal('confirm', confirm)
+    render(<AdminApp />)
+    const [button] = await screen.findAllByRole('button', { name: 'Hapus pesanan IB-1120-AAAA' })
+
+    fireEvent.click(button)
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining('IB-1120-AAAA'))
+    expect(fetchMock.mock.calls.some(([, init]) => init?.method === 'DELETE')).toBe(false)
+
+    confirm.mockReturnValue(true)
+    fireEvent.click(button)
+    await waitFor(() => expect(screen.queryAllByText('Pembeli Uji')).toHaveLength(0))
+    expect(fetchMock).toHaveBeenCalledWith('/api/admin/orders/IB-1120-AAAA', expect.objectContaining({ method: 'DELETE' }))
+  })
 })

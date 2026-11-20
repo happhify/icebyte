@@ -167,11 +167,18 @@ export async function handleAdminCreate(
   if (!parsed.ok) return parsed.result
   const { errors } = checkBusinessRules(parsed.value, now)
   if (hasErrors(errors)) return invalid('Data pesanan tidak valid.', errors)
+  // Bukti bayar opsional untuk pesanan dari chat (admin mungkin belum punya screenshot-nya).
+  let proof: Proof | undefined
+  if (isRecord(body) && body.proof !== undefined) {
+    const parsedProof = parseProof(body.proof)
+    if (!parsedProof.ok) return invalid(parsedProof.error)
+    proof = parsedProof.value
+  }
 
   // ID acak bisa bentrok (sangat jarang); coba beberapa kali.
   for (let attempt = 0; attempt < 5; attempt++) {
     const id = createOrderId(now, random)
-    if ((await repo.insert(buildNewOrder(parsed.value, id, 'Chat WA', batch))) === 'created') {
+    if ((await repo.insert(buildNewOrder(parsed.value, id, 'Chat WA', batch), proof)) === 'created') {
       const order = (await repo.list(batch.name)).find((o) => o.id === id)
       return { status: 201, body: { order } }
     }
@@ -210,4 +217,11 @@ export async function handleGetProof(
   return proof
     ? { ok: true, proof }
     : { ok: false, result: { status: 404, body: { error: 'Bukti bayar tidak ditemukan.' } } }
+}
+
+/** DELETE /api/admin/orders/:id — hapus permanen pesanan beserta bukti bayarnya. */
+export async function handleDeleteOrder(id: string, { repo }: { repo: OrderRepository }): Promise<ApiResult> {
+  return (await repo.delete(id))
+    ? { status: 200, body: { id } }
+    : { status: 404, body: { error: 'Pesanan tidak ditemukan.' } }
 }

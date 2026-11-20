@@ -7,6 +7,7 @@ import { formatWib } from './excel'
 interface OrderTableProps {
   orders: StoredOrder[]
   onStatusChange: (order: StoredOrder, status: OrderStatus) => void
+  onDelete: (order: StoredOrder) => void
 }
 
 const STATUS_STYLE: Record<OrderStatus, string> = {
@@ -43,6 +44,17 @@ const WhatsAppLink = ({ phone }: { phone: string }) => (
 )
 
 const location = (o: StoredOrder) => (o.method === 'delivery' ? o.address : METHOD_LABELS[o.method])
+
+const DeleteButton = ({ order, onDelete }: { order: StoredOrder } & Pick<OrderTableProps, 'onDelete'>) => (
+  <button
+    type="button"
+    onClick={() => onDelete(order)}
+    aria-label={`Hapus pesanan ${order.id}`}
+    className="inline-flex min-h-10 items-center rounded-full px-2 text-sm font-semibold text-coral-deep underline hover:bg-coral-soft"
+  >
+    Hapus
+  </button>
+)
 
 const proofUrl = (id: string) => `/api/admin/proof?id=${encodeURIComponent(id)}`
 
@@ -122,7 +134,7 @@ function ProofDialog({ order, onClose }: { order: StoredOrder | null; onClose: (
   )
 }
 
-export function OrderTable({ orders, onStatusChange }: OrderTableProps) {
+export function OrderTable({ orders, onStatusChange, onDelete }: OrderTableProps) {
   const [viewing, setViewing] = useState<StoredOrder | null>(null)
 
   if (orders.length === 0) {
@@ -167,6 +179,7 @@ export function OrderTable({ orders, onStatusChange }: OrderTableProps) {
                 </td>
                 <td className="px-3 py-3">
                   <StatusSelect order={o} onStatusChange={onStatusChange} />
+                  <DeleteButton order={o} onDelete={onDelete} />
                 </td>
               </tr>
             ))}
@@ -195,7 +208,10 @@ export function OrderTable({ orders, onStatusChange }: OrderTableProps) {
             <p className="mt-3 whitespace-pre-line text-sm">{o.itemsSummary}</p>
             {o.notes ? <p className="mt-1 text-xs text-cocoa">Catatan: {o.notes}</p> : null}
             <div className="mt-3 flex items-center justify-between gap-3">
-              <ProofButton order={o} onOpen={setViewing} />
+              <div className="flex items-center gap-1">
+                <ProofButton order={o} onOpen={setViewing} />
+                <DeleteButton order={o} onDelete={onDelete} />
+              </div>
               <p className="font-semibold tabular-nums">{formatRupiah(o.total)}</p>
             </div>
           </li>

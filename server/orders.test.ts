@@ -1,7 +1,14 @@
 import { afterAll, describe, expect, it } from 'vitest'
 import { site } from '../src/config/site.js'
 import type { StoredOrder } from '../src/types/index.js'
-import { handleAdminCreate, handleGetProof, handleListOrders, handlePublicOrder, handleUpdateStatus } from './orders.js'
+import {
+  handleAdminCreate,
+  handleDeleteOrder,
+  handleGetProof,
+  handleListOrders,
+  handlePublicOrder,
+  handleUpdateStatus,
+} from './orders.js'
 import { createMemoryRepository, type NewOrder } from './repository.js'
 
 // Batch contoh yang mencakup NOW, supaya test tidak bergantung pada tanggal batch asli.
@@ -164,6 +171,25 @@ describe('pesanan dari chat WA (admin)', () => {
     })
   })
 
+  it('bukti bayar opsional: ikut tersimpan kalau dilampirkan, ditolak kalau bukan gambar', async () => {
+    const repo = createMemoryRepository()
+    const withProof = await handleAdminCreate(
+      { ...rest, batch: 'Batch Test', proof: PROOF },
+      { repo, now: NOW, random: () => 0 },
+    )
+    expect(withProof.status).toBe(201)
+    const saved = (withProof.body as { order: StoredOrder }).order
+    expect(saved.hasProof).toBe(true)
+    expect((await repo.getProof(saved.id))?.mime).toBe('image/jpeg')
+
+    const bad = await handleAdminCreate(
+      { ...rest, batch: 'Batch Test', proof: { data: Buffer.from('bukan foto').toString('base64') } },
+      { repo, now: NOW, random: () => 0.5 },
+    )
+    expect(bad.status).toBe(400)
+    expect(await repo.list()).toHaveLength(1)
+  })
+
   it('batch tidak ada di config → 400', async () => {
     const res = await handleAdminCreate({ ...rest, batch: 'Batch 9' }, { repo: createMemoryRepository(), now: NOW })
     expect(res.status).toBe(400)
@@ -228,6 +254,20 @@ describe('foto bukti bayar (admin)', () => {
     expect(await handleGetProof('IB-0101-ZZZZ', { repo })).toEqual({
       ok: false,
       result: { status: 404, body: { error: 'Bukti bayar tidak ditemukan.' } },
+    })
+  })
+})
+
+describe('hapus pesanan (admin)', () => {
+  it('ada → 200, pesanan & bukti bayar hilang; tidak ada → 404', async () => {
+    const repo = createMemoryRepository()
+    await handlePublicOrder(valid, { repo, now: NOW })
+    expect(await handleDeleteOrder(valid.id, { repo })).toEqual({ status: 200, body: { id: valid.id } })
+    expect(await repo.list()).toEqual([])
+    expect(await repo.getProof(valid.id)).toBeNull()
+    expect(await handleDeleteOrder(valid.id, { repo })).toEqual({
+      status: 404,
+      body: { error: 'Pesanan tidak ditemukan.' },
     })
   })
 })

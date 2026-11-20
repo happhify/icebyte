@@ -1,5 +1,7 @@
 /** Foto bukti bayar disimpan apa adanya (tidak diperkecil), jadi ukurannya dibatasi. */
 export const MAX_PROOF_BYTES = 5 * 1024 * 1024
+/** Batas body JSON pesanan yang membawa foto: 5 MB → ±7 MB dalam base64, ditambah data pesanan. */
+export const MAX_ORDER_BODY_BYTES = 7_400_000
 
 export type ProofMime = 'image/jpeg' | 'image/png' | 'image/webp'
 

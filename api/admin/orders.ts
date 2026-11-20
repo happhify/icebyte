@@ -1,6 +1,7 @@
 import { getRepository } from '../../server/db.js'
 import { noDatabase, readJson, requireAdmin, toResponse } from '../../server/http.js'
 import { handleAdminCreate, handleListOrders } from '../../server/orders.js'
+import { MAX_ORDER_BODY_BYTES } from '../../server/proof.js'
 import { nowInJakarta } from '../../server/time.js'
 
 /** Daftar pesanan, opsional ?batch=. */
@@ -17,11 +18,11 @@ export async function GET(request: Request): Promise<Response> {
   }
 }
 
-/** Tambah pesanan dari chat WA. */
+/** Tambah pesanan dari chat WA (bukti bayar opsional). */
 export async function POST(request: Request): Promise<Response> {
   const denied = requireAdmin(request)
   if (denied) return denied
-  const body = await readJson(request)
+  const body = await readJson(request, MAX_ORDER_BODY_BYTES)
   if (!body.ok) return body.response
   const repo = getRepository()
   if (!repo) return noDatabase()

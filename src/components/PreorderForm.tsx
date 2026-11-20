@@ -1,6 +1,7 @@
 import { useRef, useState, type FormEvent } from 'react'
 import { site } from '../config/site'
 import { isPlaceholder } from '../lib/links'
+import { fileToBase64 } from '../lib/proofFile'
 import {
   METHOD_LABELS,
   ORDER_LIMITS,
@@ -41,16 +42,6 @@ function openWhatsApp(url: string) {
   const win = window.open(url, '_blank')
   if (win) win.opener = null
   else window.location.href = url
-}
-
-/** Isi file sebagai base64 (tanpa awalan "data:…;base64,"). */
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(String(reader.result).replace(/^data:[^,]*,/, ''))
-    reader.onerror = () => reject(reader.error ?? new Error('Gagal membaca foto.'))
-    reader.readAsDataURL(file)
-  })
 }
 
 /** Simpan pesanan + bukti bayar ke rekap (halaman admin). Ditunggu: WA baru dibuka setelah tersimpan. */

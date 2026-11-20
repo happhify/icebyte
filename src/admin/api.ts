@@ -38,7 +38,9 @@ export const fetchOrders = (batch: string | null) =>
     `/api/admin/orders${batch === null ? '' : `?batch=${encodeURIComponent(batch)}`}`,
   )
 
-export async function createOrder(input: OrderInput & { batch: string }): Promise<StoredOrder> {
+export async function createOrder(
+  input: OrderInput & { batch: string; proof?: { data: string } },
+): Promise<StoredOrder> {
   const { order } = await request<{ order: StoredOrder }>('/api/admin/orders', {
     method: 'POST',
     body: JSON.stringify(input),
@@ -52,4 +54,9 @@ export async function updateStatus(id: string, status: OrderStatus): Promise<Sto
     body: JSON.stringify({ status }),
   })
   return order
+}
+
+/** Hapus permanen (termasuk bukti bayar). */
+export async function deleteOrder(id: string): Promise<void> {
+  await request<{ id: string }>(`/api/admin/orders/${encodeURIComponent(id)}`, { method: 'DELETE' })
 }

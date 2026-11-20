@@ -3,7 +3,7 @@ import { site } from '../config/site'
 import { getOpenBatch } from '../lib/order'
 import type { OrderStatus, StoredOrder } from '../types'
 import { AddOrderDialog } from './AddOrderDialog'
-import { UnauthorizedError, fetchOrders, logout, updateStatus } from './api'
+import { UnauthorizedError, deleteOrder, fetchOrders, logout, updateStatus } from './api'
 import { downloadExcel } from './excel'
 import { LoginForm } from './LoginForm'
 import { OrderTable } from './OrderTable'
@@ -76,6 +76,23 @@ export function AdminApp() {
       setOrders((list) => list.map((o) => (o.id === order.id ? { ...o, status: previous } : o)))
       if (!handleError(error)) {
         setNotice(`Status ${order.id} gagal disimpan: ${error instanceof Error ? error.message : 'coba lagi'}`)
+      }
+    }
+  }
+
+  const removeOrder = async (order: StoredOrder) => {
+    const ok = confirm(
+      `Hapus pesanan ${order.id} atas nama ${order.name}?\n\nPesanan dan bukti bayarnya terhapus permanen. ` +
+        'Untuk pesanan yang tidak jadi, cukup ubah status ke "Batal".',
+    )
+    if (!ok) return
+    setNotice('')
+    try {
+      await deleteOrder(order.id)
+      setOrders((list) => list.filter((o) => o.id !== order.id))
+    } catch (error) {
+      if (!handleError(error)) {
+        setNotice(`Pesanan ${order.id} gagal dihapus: ${error instanceof Error ? error.message : 'coba lagi'}`)
       }
     }
   }
@@ -167,7 +184,7 @@ export function AdminApp() {
           <h2 id="pesanan-title" className="text-xl">
             Pesanan <span className="font-mono text-base text-cocoa">({orders.length})</span>
           </h2>
-          <OrderTable orders={orders} onStatusChange={changeStatus} />
+          <OrderTable orders={orders} onStatusChange={changeStatus} onDelete={removeOrder} />
         </section>
       </main>
 
