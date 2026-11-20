@@ -39,8 +39,7 @@ const delivery = {
 // Di luar semua masa batch, form PO ditutup. Tambah batch baru di bawahnya.
 const batches: PoBatch[] = [
   { name: 'Batch 1', orderStart: '2026-10-11', orderEnd: '2026-10-14', fulfillmentDate: '2026-10-18' },
-  // SEMENTARA — hanya untuk uji coba di preview. Hapus (git revert) sebelum merge ke main.
-  { name: 'Batch Uji', orderStart: '2026-10-31', orderEnd: '2026-11-27', fulfillmentDate: '2026-11-28' },
+  { name: 'Batch 2', orderStart: '2026-11-20', orderEnd: '2026-11-22', fulfillmentDate: '2026-11-26' },
 ]
 
 // Metode di form PO. Booth belum buka, jadi sementara hanya antar.
